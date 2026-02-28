@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Flight Simulator — Piaggio P.180 Avanti</title>
+  <style>
+    /* TODO: Implement full styling — see design screenshot
+       Layout: canvas (left ~70%) + control panel (right ~30%)
+       Bottom bar: axis settings, attitude indicator, force readouts */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #1a1a2e; color: #eee; overflow: hidden; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Main canvas (sky + aircraft + force arrows) ──────────── -->
+  <canvas id="simCanvas"></canvas>
+
+  <!-- ── Right-hand control panel ─────────────────────────────── -->
+  <aside id="controls">
+
+    <!-- States (read-only displays) -->
+    <section id="states">
+      <h3>States</h3>
+      <!-- TODO: Pitch Rate slider/readout -->
+      <!-- TODO: Initial Γ + Change readout -->
+      <!-- TODO: Velocity (m/s) slider/readout -->
+      <!-- TODO: Angle of Attack (α) slider/readout -->
+    </section>
+
+    <!-- Pilot Inputs (interactive sliders) -->
+    <section id="pilot-inputs">
+      <h3>Pilot Inputs</h3>
+      <!-- TODO: Elevator slider  δe  ±20° -->
+      <!-- TODO: Tail Setting Angle slider -->
+      <!-- TODO: Throttle (%) slider 0–100 -->
+    </section>
+
+    <!-- Parameters (adjustable) -->
+    <section id="parameters">
+      <h3>Parameters</h3>
+      <!-- TODO: Altitude slider / readout -->
+      <!-- TODO: Fuel (%) slider -->
+    </section>
+
+    <!-- Mode buttons -->
+    <!-- TODO: "Static Flow / Moving Body" button -->
+    <!-- TODO: "Static Body / Moving Flow" button -->
+  </aside>
+
+  <!-- ── Bottom bar ───────────────────────────────────────────── -->
+  <footer id="bottom-bar">
+    <!-- Axis Settings -->
+    <!-- TODO: Flight Path / Aircraft Datum toggle -->
+    <!-- TODO: X-Earth / Z-Earth axis labels -->
+    <!-- TODO: Body Velocity vector indicator -->
+
+    <!-- Attitude indicator (artificial horizon) -->
+    <!-- TODO: Canvas-drawn dial -->
+
+    <!-- Force readouts -->
+    <section id="forces">
+      <!-- TODO: ΣX = ... N -->
+      <!-- TODO: ΣZ = ... N -->
+      <!-- TODO: ΣM = ... Nm -->
+      <!-- TODO: Earth Axis / Body Axis dropdown -->
+    </section>
+  </footer>
+
+  <!-- ── Scripts ──────────────────────────────────────────────── -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="/static/renderer.js"></script>
+  <script src="/static/sim.js"></script>
+</body>
+</html>
