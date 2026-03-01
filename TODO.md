@@ -12,42 +12,42 @@
 - [x] Initialise `aircraft.py` with all Piaggio P.180 Avanti parameters (Tables 1 & 2)
 - [x] Scaffold `eom.py`, `aero.py`, `app.py`, `sim.js`, `renderer.js`, `index.html`
 - [x] Deprecate old `flight_dynamics/physics_engine.py` (Cessna 172 params)
-- [ ] Add `requirements.txt` (flask, flask-socketio, numpy, eventlet/gevent)
-- [ ] Estimate or source missing inertia values (Ixx, Izz, Ixz) for the Avanti
+- [x] Add `requirements.txt` (flask, flask-socketio, numpy, eventlet/gevent)
+- [x] Estimate or source missing inertia values (Ixx, Izz, Ixz) for the Avanti
 
 ---
 
 ## Phase 1 — Longitudinal-Only Physics (6 states: U, W, q, Θ, xE, zE)
 > Goal: a working pitch / climb / dive sim with elevator + throttle.
 
-- [ ] **1.1 ISA atmosphere model** — `ρ(h)`, `T(h)`, `a(h)` (speed of sound)
-- [ ] **1.2 Aerodynamic model (aero.py)** — longitudinal only
-  - [ ] Dynamic pressure `q̄ = ½ρV²`
-  - [ ] Wing lift `CL_W = a_W · (α − α_0W + i_W)` with zero-lift AoA & setting angle
-  - [ ] Canard lift `CL_C` (with upwash correction `dε_U/dα`)
-  - [ ] Tail lift `CL_H` (with downwash correction `dε/dα`)
-  - [ ] Total aircraft CL (wing + canard + tail, area-weighted)
-  - [ ] Drag: `CD = CD0 + k_W·CL_W²/(π·AR_W) + CD0_C + k_C·CL_C²/(π·AR_C) + CD0_H + k_H·CL_H²/(π·AR_H)`
-  - [ ] Pitching moment about CG: wing `CM0_W` + canard contribution + tail contribution + fuselage `(dCM/dα)_F · α`
-  - [ ] Elevator effectiveness: `a_E · δe` acting on tail lift → moment arm from tail AC to CG
-  - [ ] Pitch damping term: `CM_q · (q · c̄ / 2V)`
-  - [ ] Rotate wind-axis forces → body axes: `Xa = L·sin(α) − D·cos(α)`, `Za = −L·cos(α) − D·sin(α)`
-- [ ] **1.3 Thrust model**
-  - [ ] Turboprop: `T = η_prop · P / V` (with prop efficiency η_prop ≈ 0.85)
-  - [ ] Throttle maps to fraction of P_max_total
-  - [ ] Thrust line offset `z_T` → contributes to pitching moment
-- [ ] **1.4 Gravity in body axes** — `Xg = −mg·sin(Θ)`, `Zg = mg·cos(Θ)`
-- [ ] **1.5 Equations of motion (eom.py)** — 6-state longitudinal
-  - [ ] `U̇ = (X/m) − W·q`  (V=0, r=0 simplification)
-  - [ ] `Ẇ = (Z/m) + U·q`  (V=0, p=0 simplification)
-  - [ ] `q̇ = M / Iyy`       (Ixz=0 or negligible for longitudinal)
-  - [ ] `Θ̇ = q`
-  - [ ] `ẋE = U·cos(Θ) + W·sin(Θ)`
-  - [ ] `żE = −U·sin(Θ) + W·cos(Θ)`
-- [ ] **1.6 RK4 integrator** — `rk4_step(state, controls, dt)` with `dt ≈ 1/60 s`
-- [ ] **1.7 Trim solver** — find `(α_trim, δe_trim, T_trim)` so all derivatives ≈ 0
-  - [ ] Verify: aircraft holds level flight with zero control input at trim
-- [ ] **1.8 Ground collision clamp** — if `altitude ≤ 0`, freeze vertical motion
+- [x] **1.1 ISA atmosphere model** — `ρ(h)`, `T(h)`, `a(h)` → `atmosphere.py`
+- [x] **1.2 Aerodynamic model (aero.py)** — longitudinal only
+  - [x] Dynamic pressure `q̄ = ½ρV²`
+  - [x] Wing lift `CL_W = a_W · (α − α_0W + i_W)` with zero-lift AoA & setting angle
+  - [x] Canard lift `CL_C` (with upwash correction `dε_U/dα`)
+  - [x] Tail lift `CL_H` (with downwash correction `dε/dα`)
+  - [x] Total aircraft CL (wing + canard + tail, area-weighted)
+  - [x] Drag: `CD = CD0 + k_W·CL_W²/(π·AR_W) + CD0_C + k_C·CL_C²/(π·AR_C) + CD0_H + k_H·CL_H²/(π·AR_H)`
+  - [x] Pitching moment about CG: wing `CM0_W` + canard contribution + tail contribution + fuselage `(dCM/dα)_F · α`
+  - [x] Elevator effectiveness: `a_E · δe` acting on tail lift → moment arm from tail AC to CG
+  - [x] Pitch damping term: `CM_q · (q · c̄ / 2V)`
+  - [x] Rotate wind-axis forces → body axes: `Xa = L·sin(α) − D·cos(α)`, `Za = −L·cos(α) − D·sin(α)`
+- [x] **1.3 Thrust model**
+  - [x] Turboprop: `T = η_prop · P / V` (with prop efficiency η_prop ≈ 0.85)
+  - [x] Throttle maps to fraction of P_max_total
+  - [x] Thrust line offset `z_T` → contributes to pitching moment
+- [x] **1.4 Gravity in body axes** — `Xg = −mg·sin(Θ)`, `Zg = mg·cos(Θ)`
+- [x] **1.5 Equations of motion (eom.py)** — 6-state longitudinal
+  - [x] `U̇ = (X/m) − W·q`  (V=0, r=0 simplification)
+  - [x] `Ẇ = (Z/m) + U·q`  (V=0, p=0 simplification)
+  - [x] `q̇ = M / Iyy`       (Ixz=0 or negligible for longitudinal)
+  - [x] `Θ̇ = q`
+  - [x] `ẋE = U·cos(Θ) + W·sin(Θ)`
+  - [x] `żE = −U·sin(Θ) + W·cos(Θ)`
+- [x] **1.6 RK4 integrator** — `rk4_step(state, controls, dt)` with `dt ≈ 1/60 s`
+- [x] **1.7 Trim solver** — find `(α_trim, δe_trim, T_trim)` so all derivatives ≈ 0
+  - [x] Verify: aircraft holds level flight with zero control input at trim
+- [x] **1.8 Ground collision clamp** — if `altitude ≤ 0`, freeze vertical motion
 
 ---
 

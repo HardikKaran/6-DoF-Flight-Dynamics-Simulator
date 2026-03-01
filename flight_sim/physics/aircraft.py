@@ -163,6 +163,7 @@ P_max_total = P_max * engines  # 1 268 000 W total
 #  INERTIAL PROPERTIES — mid-cruise 
 # ══════════════════════════════════════════════════════════════════
 m       = 4836.0               # aircraft mass [kg]
+x_CG    = 7.4055                 # longitudinal CoG from nose datum [m]
 z_CG    = 0.85                 # vertical CoG above baseline [m]
 Iyy     = 75_290               # pitching 2nd moment of inertia [kg m²]
 I_E     = 0.261                # elevator polar moment of inertia [kg m²]
