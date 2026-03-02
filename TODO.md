@@ -54,34 +54,34 @@
 ## Phase 2 — Rendering (Canvas 2D)
 > Goal: see the aircraft moving on screen before the physics are perfect.
 
-- [ ] **2.1 Canvas setup** — sizing, DPI scaling, `requestAnimationFrame` loop
-- [ ] **2.2 Sky background** — gradient (blue → light blue), darkens with altitude
-- [ ] **2.3 Ground / horizon line** — scrolls vertically with altitude
-- [ ] **2.4 Cloud layers** — parallax scrolling decorations
-- [ ] **2.5 Aircraft drawing**
-  - [ ] Option A: wireframe Piaggio shape (canard, swept mid-wing, T-tail, pusher nacelles)
+- [x] **2.1 Canvas setup** — sizing, DPI scaling, `requestAnimationFrame` loop
+- [x] **2.2 Sky background** — gradient (blue → light blue), darkens with altitude
+- [x] **2.3 Ground / horizon line** — scrolls vertically with altitude
+- [x] **2.4 Cloud layers** — parallax scrolling decorations
+- [x] **2.5 Aircraft drawing**
+  - [x] Option A: wireframe Piaggio shape (canard, swept mid-wing, T-tail, pusher nacelles)
   - [ ] Option B: load aircraft sprite/image (as shown in screenshot)
-  - [ ] Rotate by pitch angle Θ; aircraft centred on screen
-- [ ] **2.6 Force arrows** — draw vectors for lift, drag, weight, thrust on the aircraft
-- [ ] **2.7 Flow arrows** — freestream velocity field (green arrows, left side of screen)
-- [ ] **2.8 Attitude indicator** — artificial horizon dial (bottom-centre)
-- [ ] **2.9 HUD text** — speed (m/s), altitude (m), α (deg), Θ (deg), q (rad/s)
-- [ ] **2.10 Force readout panel** — ΣX, ΣZ, ΣM values (bottom)
+  - [x] Rotate by pitch angle Θ; aircraft centred on screen
+- [x] **2.6 Force arrows** — draw vectors for lift, drag, weight, thrust on the aircraft
+- [x] **2.7 Flow arrows** — freestream velocity field (green arrows, left side of screen)
+- [x] **2.8 Attitude indicator** — artificial horizon dial (bottom-centre)
+- [x] **2.9 HUD text** — speed (m/s), altitude (m), α (deg), Θ (deg), q (rad/s)
+- [x] **2.10 Force readout panel** — ΣX, ΣZ, ΣM values (bottom)
 
 ---
 
 ## Phase 3 — Flask + SocketIO Integration
 > Goal: connect Python physics ↔ browser rendering in real-time.
 
-- [ ] **3.1 Flask route** — serve `index.html` at `/`
-- [ ] **3.2 Static file serving** — `sim.js`, `renderer.js`
-- [ ] **3.3 SocketIO events**
-  - [ ] `connect` → initialise state to trim, start physics thread
-  - [ ] `controls` → receive `{de, throttle}` from browser
-  - [ ] `state` → emit `{U, W, q, theta, xE, zE, forces, …}` to browser
-  - [ ] `reset` → re-initialise to trim
-- [ ] **3.4 Physics background thread** — 60 Hz loop using `socketio.start_background_task`
-- [ ] **3.5 sim.js client** — connect, send controls, receive state, call renderer
+- [x] **3.1 Flask route** — serve `index.html` at `/`
+- [x] **3.2 Static file serving** — `sim.js`, `renderer.js`
+- [x] **3.3 SocketIO events**
+  - [x] `connect` → initialise state to trim, start physics thread
+  - [x] `controls` → receive `{de, throttle}` from browser
+  - [x] `state` → emit `{U, W, q, theta, xE, zE, forces, …}` to browser
+  - [x] `reset` → re-initialise to trim
+- [x] **3.4 Physics background thread** — 60 Hz loop using `socketio.start_background_task`
+- [x] **3.5 sim.js client** — connect, send controls, receive state, call renderer
 
 ---
 

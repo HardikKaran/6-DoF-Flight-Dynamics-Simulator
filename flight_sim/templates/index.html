@@ -4,71 +4,224 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>2D Flight Simulator — Piaggio P.180 Avanti</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    /* TODO: Implement full styling — see design screenshot
-       Layout: canvas (left ~70%) + control panel (right ~30%)
-       Bottom bar: axis settings, attitude indicator, force readouts */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: sans-serif; background: #1a1a2e; color: #eee; overflow: hidden; }
+    /* ── RESET ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: 'IBM Plex Mono', monospace;
+      background: #0d1117;
+      color: #c9d1d9;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      grid-template-rows: 1fr 110px;
+      grid-template-areas:
+        "canvas panel"
+        "bar    bar";
+    }
+
+    /* ── CANVAS ─────────────────────────────────── */
+    #sim-canvas {
+      grid-area: canvas;
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #0a1a3a;
+    }
+
+    /* ── RIGHT PANEL ────────────────────────────── */
+    #panel {
+      grid-area: panel;
+      background: #161b22;
+      border-left: 1px solid #30363d;
+      overflow-y: auto;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #panel h2 {
+      font-size: 14px;
+      color: #58a6ff;
+      border-bottom: 1px solid #21262d;
+      padding-bottom: 4px;
+      margin-bottom: 2px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      padding: 2px 0;
+    }
+    .row .label { color: #8b949e; }
+    .row .value { color: #e6edf3; font-weight: 600; min-width: 80px; text-align: right; }
+
+    /* sliders */
+    .slider-row { display: flex; flex-direction: column; gap: 2px; padding: 3px 0; }
+    .slider-row label { font-size: 11px; color: #8b949e; }
+    .slider-row input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #21262d;
+      border-radius: 3px;
+      outline: none;
+    }
+    .slider-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px; height: 14px;
+      background: #58a6ff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* buttons */
+    .btn {
+      font-family: inherit;
+      font-size: 12px;
+      padding: 6px 10px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #c9d1d9;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #30363d; }
+    .btn-danger { border-color: #f85149; color: #f85149; }
+    .btn-danger:hover { background: #f8514922; }
+    .btn-group { display: flex; gap: 6px; }
+
+    /* connection badge */
+    #conn-status {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+      display: inline-block;
+    }
+
+    /* ── BOTTOM BAR ─────────────────────────────── */
+    #bottom-bar {
+      grid-area: bar;
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 18px;
+      gap: 24px;
+    }
+    #bottom-bar section {
+      display: flex;
+      gap: 18px;
+      font-size: 12px;
+    }
+    .force-item { display: flex; flex-direction: column; align-items: center; }
+    .force-item .fl { font-size: 10px; color: #8b949e; }
+    .force-item .fv { font-size: 13px; font-weight: 600; color: #e6edf3; }
+
+    .keyboard-hint {
+      font-size: 10px;
+      color: #484f58;
+      text-align: center;
+      line-height: 1.5;
+    }
+    kbd {
+      display: inline-block;
+      padding: 1px 5px;
+      font-size: 10px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      color: #8b949e;
+    }
   </style>
 </head>
 <body>
 
-  <!-- ── Main canvas (sky + aircraft + force arrows) ──────────── -->
-  <canvas id="simCanvas"></canvas>
+  <!-- ═══ MAIN CANVAS ════════════════════════════════════════ -->
+  <canvas id="sim-canvas"></canvas>
 
-  <!-- ── Right-hand control panel ─────────────────────────────── -->
-  <aside id="controls">
+  <!-- ═══ RIGHT PANEL ════════════════════════════════════════ -->
+  <div id="panel">
 
-    <!-- States (read-only displays) -->
-    <section id="states">
-      <h3>States</h3>
-      <!-- TODO: Pitch Rate slider/readout -->
-      <!-- TODO: Initial Γ + Change readout -->
-      <!-- TODO: Velocity (m/s) slider/readout -->
-      <!-- TODO: Angle of Attack (α) slider/readout -->
-    </section>
+    <!-- Title -->
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:15px;font-weight:600;color:#e6edf3">P.180 Avanti</span>
+      <span id="conn-status" style="color:#f85149">Connecting…</span>
+    </div>
 
-    <!-- Pilot Inputs (interactive sliders) -->
-    <section id="pilot-inputs">
-      <h3>Pilot Inputs</h3>
-      <!-- TODO: Elevator slider  δe  ±20° -->
-      <!-- TODO: Tail Setting Angle slider -->
-      <!-- TODO: Throttle (%) slider 0–100 -->
-    </section>
+    <!-- States -->
+    <h2>States</h2>
+    <div class="row"><span class="label">Airspeed</span>     <span class="value" id="val-speed">—</span></div>
+    <div class="row"><span class="label">Altitude</span>     <span class="value" id="val-altitude">—</span></div>
+    <div class="row"><span class="label">Mach</span>         <span class="value" id="val-mach">—</span></div>
+    <div class="row"><span class="label">AoA (α)</span>      <span class="value" id="val-alpha">—</span></div>
+    <div class="row"><span class="label">Pitch (θ)</span>    <span class="value" id="val-theta">—</span></div>
+    <div class="row"><span class="label">Pitch rate (q)</span><span class="value" id="val-q">—</span></div>
 
-    <!-- Parameters (adjustable) -->
-    <section id="parameters">
-      <h3>Parameters</h3>
-      <!-- TODO: Altitude slider / readout -->
-      <!-- TODO: Fuel (%) slider -->
-    </section>
+    <!-- Pilot Inputs -->
+    <h2>Pilot Inputs</h2>
+    <div class="row"><span class="label">Elevator (δe)</span><span class="value" id="val-de">0.0°</span></div>
+    <div class="slider-row">
+      <label>Elevator δe (°)</label>
+      <input type="range" id="slider-de" min="-20" max="20" step="0.5" value="0">
+    </div>
+    <div class="row"><span class="label">Throttle</span><span class="value" id="val-throttle">50%</span></div>
+    <div class="slider-row">
+      <label>Throttle (%)</label>
+      <input type="range" id="slider-throttle" min="0" max="100" step="1" value="50">
+    </div>
 
-    <!-- Mode buttons -->
-    <!-- TODO: "Static Flow / Moving Body" button -->
-    <!-- TODO: "Static Body / Moving Flow" button -->
-  </aside>
+    <!-- Forces -->
+    <h2>Forces</h2>
+    <div class="row"><span class="label">Lift</span>     <span class="value" id="val-lift">—</span></div>
+    <div class="row"><span class="label">Drag</span>     <span class="value" id="val-drag">—</span></div>
+    <div class="row"><span class="label">Thrust</span>   <span class="value" id="val-thrust">—</span></div>
+    <div class="row"><span class="label">ΣX</span>       <span class="value" id="val-fx">—</span></div>
+    <div class="row"><span class="label">ΣZ</span>       <span class="value" id="val-fz">—</span></div>
+    <div class="row"><span class="label">ΣM</span>       <span class="value" id="val-fm">—</span></div>
 
-  <!-- ── Bottom bar ───────────────────────────────────────────── -->
+    <!-- Buttons -->
+    <div class="btn-group" style="margin-top:6px">
+      <button class="btn" id="btn-pause">⏸ Pause</button>
+      <button class="btn btn-danger" id="btn-reset">↺ Reset</button>
+    </div>
+
+    <div class="keyboard-hint">
+      <kbd>↑</kbd><kbd>↓</kbd> Elevator &nbsp;
+      <kbd>W</kbd><kbd>S</kbd> Throttle
+    </div>
+  </div>
+
+  <!-- ═══ BOTTOM BAR ═════════════════════════════════════════ -->
   <footer id="bottom-bar">
-    <!-- Axis Settings -->
-    <!-- TODO: Flight Path / Aircraft Datum toggle -->
-    <!-- TODO: X-Earth / Z-Earth axis labels -->
-    <!-- TODO: Body Velocity vector indicator -->
+    <section id="force-readouts">
+      <div class="force-item"><span class="fl">Lift</span>    <span class="fv" id="bar-lift">—</span></div>
+      <div class="force-item"><span class="fl">Drag</span>    <span class="fv" id="bar-drag">—</span></div>
+      <div class="force-item"><span class="fl">Thrust</span>  <span class="fv" id="bar-thrust">—</span></div>
+      <div class="force-item"><span class="fl">Weight</span>  <span class="fv" id="bar-weight">—</span></div>
+    </section>
 
-    <!-- Attitude indicator (artificial horizon) -->
-    <!-- TODO: Canvas-drawn dial -->
+    <div class="keyboard-hint" style="flex:1;text-align:center">
+      Piaggio P.180 Avanti · 6-DoF Longitudinal Sim · Phase 2
+    </div>
 
-    <!-- Force readouts -->
-    <section id="forces">
-      <!-- TODO: ΣX = ... N -->
-      <!-- TODO: ΣZ = ... N -->
-      <!-- TODO: ΣM = ... Nm -->
-      <!-- TODO: Earth Axis / Body Axis dropdown -->
+    <section>
+      <div class="force-item"><span class="fl">V<sub>T</sub></span>  <span class="fv" id="bar-vt">—</span></div>
+      <div class="force-item"><span class="fl">Alt</span>            <span class="fv" id="bar-alt">—</span></div>
+      <div class="force-item"><span class="fl">α</span>              <span class="fv" id="bar-alpha">—</span></div>
     </section>
   </footer>
 
-  <!-- ── Scripts ──────────────────────────────────────────────── -->
+  <!-- ═══ SCRIPTS ════════════════════════════════════════════ -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="/static/renderer.js"></script>
   <script src="/static/sim.js"></script>
