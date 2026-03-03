@@ -36,18 +36,23 @@ _EPS = 1e-6
 # ══════════════════════════════════════════════════════════════════
 #  Precomputed geometry  (moment arms from CG)
 # ══════════════════════════════════════════════════════════════════
-_l_C = ac.canard.x_ac - ac.x_CG   # canard arm (negative → forward of CG)
-_l_W = ac.wing.x_ac   - ac.x_CG   # wing arm   (small positive)
-_l_H = ac.tail.x_ac   - ac.x_CG   # tail arm   (positive → aft of CG)
+_l_C = 0.0; _l_W = 0.0; _l_H = 0.0
+_dz_T = 0.0; _dz_C = 0.0; _dz_W = 0.0; _dz_H = 0.0
+_V_H = 0.0
 
-# Vertical offsets of thrust line and surfaces from CG
-_dz_T = ac.z_T  - ac.z_CG         # thrust line above CG (positive → above)
-_dz_C = ac.canard.z_ac - ac.z_CG
-_dz_W = ac.wing.z_ac   - ac.z_CG
-_dz_H = ac.tail.z_ac   - ac.z_CG
+def _precompute():
+    """Recompute derived geometry from current aircraft params."""
+    global _l_C, _l_W, _l_H, _dz_T, _dz_C, _dz_W, _dz_H, _V_H
+    _l_C = ac.canard.x_ac - ac.x_CG   # canard arm (negative → forward of CG)
+    _l_W = ac.wing.x_ac   - ac.x_CG   # wing arm   (small positive)
+    _l_H = ac.tail.x_ac   - ac.x_CG   # tail arm   (positive → aft of CG)
+    _dz_T = ac.z_T  - ac.z_CG         # thrust line above CG
+    _dz_C = ac.canard.z_ac - ac.z_CG
+    _dz_W = ac.wing.z_ac   - ac.z_CG
+    _dz_H = ac.tail.z_ac   - ac.z_CG
+    _V_H = (ac.tail.S * _l_H) / (ac.S_ref * ac.c_ref)
 
-# Tail volume ratio (useful for pitch damping estimate)
-_V_H = (ac.tail.S * _l_H) / (ac.S_ref * ac.c_ref)
+_precompute()  # run once at import
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -126,9 +131,9 @@ def compute_aero(U: float, W: float, q: float, theta: float,
 
     # ── Pitch-damping contribution to tail lift ───────────────────
     # The tail sees an additional angle due to pitch rate:
-    #   Δα_H = −q · l_H / V_T   (tail aft of CG, pitch-up → reduced AoA at tail)
+    #   Δα_H = +q · l_H / V_T   (tail aft of CG, pitch-up → increased AoA at tail)
     if V_T > _EPS:
-        delta_alpha_q = -q * _l_H / V_T
+        delta_alpha_q = q * _l_H / V_T
         CL_H += ac.tail.a * delta_alpha_q
 
     # ── Total lift coefficient (area-weighted) ────────────────────
@@ -170,30 +175,28 @@ def compute_aero(U: float, W: float, q: float, theta: float,
     Z = Za + Zg
 
     # ── Pitching moment about CG ─────────────────────────────────
-    # Each surface: M_surf = (lift_surf · l_surf)  (positive nose-up)
-    # Plus zero-lift moment contributions.
+    # Each surface: M_surf = CM0_term − CL · l  (positive nose-up;
+    #   l measured positive-aft from CG, so −CL·l gives nose-down for
+    #   upward lift behind the CG — standard sign convention).
     M_W = (q_bar * ac.wing.S   * ac.wing.c_bar   * ac.wing.CM0
-            + q_bar * ac.wing.S   * CL_W * _l_W)
+            - q_bar * ac.wing.S   * CL_W * _l_W)
     M_C = (q_bar * ac.canard.S * ac.canard.c_bar * ac.canard.CM0
-            + q_bar * ac.canard.S * CL_C * _l_C)
+            - q_bar * ac.canard.S * CL_C * _l_C)
     M_H = (q_bar * ac.tail.S   * ac.tail.c_bar   * ac.tail.CM0
-            + q_bar * ac.tail.S   * CL_H * _l_H)
+            - q_bar * ac.tail.S   * CL_H * _l_H)
 
     # Fuselage contribution
     M_fus = q_bar * ac.S_ref * ac.c_ref * ac.dCM_da_fus * alpha
 
     # Thrust moment (z-offset of thrust line from CG)
-    M_thrust = T * _dz_T
+    # _dz_T is positive-up; in body axes (z-down) the offset is −_dz_T,
+    # so M_y = (−_dz_T) · T  =  −T · _dz_T.
+    M_thrust = -T * _dz_T
 
-    # Pitch damping (dimensional):  M_q ≈ −(1/2)ρV · a_H · S_H · l_H² · (q/V)
-    # Simplified from non-dimensional CM_q:
-    if V_T > _EPS:
-        CM_q_eff = -2.0 * ac.tail.a * _V_H * (_l_H / ac.c_ref)
-        M_q_damp = q_bar * ac.S_ref * ac.c_ref * CM_q_eff * (q * ac.c_ref / (2.0 * V_T))
-    else:
-        M_q_damp = 0.0
+    # NOTE: Pitch damping is already captured by the Δα_H = q·l_H/V_T
+    # modification to CL_H above; no separate CM_q term is needed.
 
-    M_total = M_W + M_C + M_H + M_fus + M_thrust + M_q_damp
+    M_total = M_W + M_C + M_H + M_fus + M_thrust
 
     return {
         "X":       X,

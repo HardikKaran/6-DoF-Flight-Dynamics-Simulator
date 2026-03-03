@@ -88,32 +88,32 @@
 ## Phase 4 — UI Controls & Interactivity
 > Goal: match the control panel shown in the design screenshots.
 
-- [ ] **4.1 Right panel — States section** (read-only)
-  - [ ] Pitch Rate display + slider indicator
-  - [ ] Initial Γ + Change readout
-  - [ ] Velocity (m/s) slider + value
-  - [ ] Angle of Attack (α) slider + value (deg)
-- [ ] **4.2 Right panel — Pilot Inputs section** (interactive)
-  - [ ] Elevator slider (±20°)
-  - [ ] Tail Setting Angle slider
-  - [ ] Throttle (%) slider (0–100%)
-- [ ] **4.3 Right panel — Parameters section**
-  - [ ] Altitude slider / readout
-  - [ ] Fuel (%) slider → adjusts aircraft mass dynamically
-- [ ] **4.4 Mode buttons**
-  - [ ] "Static Flow / Moving Body" — aircraft moves, flow arrows fixed
-  - [ ] "Static Body / Moving Flow" — aircraft centred, flow arrows scroll
-- [ ] **4.5 Bottom bar — Axis Settings**
-  - [ ] Flight Path / Aircraft Datum toggle
-  - [ ] X-Earth / Z-Earth axis labels + display
-  - [ ] Body Velocity vector indicator
-- [ ] **4.6 Bottom bar — Force display**
-  - [ ] ΣX, ΣZ, ΣM numerical readouts
-  - [ ] Earth Axis / Body Axis dropdown to change reference frame
-- [ ] **4.7 Keyboard controls** — Arrow Up/Down (elevator), W/S (throttle)
-- [ ] **4.8 Aircraft parameter editor overlay** (as in screenshot 3)
-  - [ ] Editable fields: AR, Pmax, ebar, sref, weights, xcg, aero coefficients…
-  - [ ] "Load" button to apply & "Exit" to dismiss
+- [x] **4.1 Right panel — States section** (read-only)
+  - [x] Pitch Rate display + slider indicator
+  - [x] Initial Γ + Change readout
+  - [x] Velocity (m/s) slider + value
+  - [x] Angle of Attack (α) slider + value (deg)
+- [x] **4.2 Right panel — Pilot Inputs section** (interactive)
+  - [x] Elevator slider (±20°)
+  - [x] Tail Setting Angle slider
+  - [x] Throttle (%) slider (0–100%)
+- [x] **4.3 Right panel — Parameters section**
+  - [x] Altitude slider / readout
+  - [x] Fuel (%) slider → adjusts aircraft mass dynamically
+- [x] **4.4 Mode buttons**
+  - [x] "Static Flow / Moving Body" — aircraft moves, flow arrows fixed
+  - [x] "Static Body / Moving Flow" — aircraft centred, flow arrows scroll
+- [x] **4.5 Bottom bar — Axis Settings**
+  - [x] Flight Path / Aircraft Datum toggle
+  - [x] X-Earth / Z-Earth axis labels + display
+  - [x] Body Velocity vector indicator
+- [x] **4.6 Bottom bar — Force display**
+  - [x] ΣX, ΣZ, ΣM numerical readouts
+  - [x] Earth Axis / Body Axis dropdown to change reference frame
+- [x] **4.7 Keyboard controls** — Arrow Up/Down (elevator), W/S (throttle), R (reset), P (pause)
+- [x] **4.8 Aircraft parameter editor overlay** (as in screenshot 3)
+  - [x] Editable fields: AR, Pmax, ebar, sref, weights, xcg, aero coefficients…
+  - [x] "Load" button to apply & "Exit" to dismiss
 
 ---
 

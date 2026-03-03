@@ -228,7 +228,7 @@ function drawArrow(x1, y1, dx, dy, colour, label) {
 /* ================================================================
    FLOW ARROWS (freestream velocity field)
    ================================================================ */
-function drawFlowArrows(alpha, V_T) {
+function drawFlowArrows(alpha, V_T, xE, mode) {
   if (V_T < 1) return;
   const arrowLen = Math.min(60, V_T * 0.3);
   const cosA = Math.cos(alpha);
@@ -239,10 +239,11 @@ function drawFlowArrows(alpha, V_T) {
   ctx.fillStyle   = FLOW_COL;
   ctx.lineWidth   = 1.5;
 
-  const cols = 1;
   const rows = Math.floor(H / 60);
+  /* In "body" mode arrows scroll with xE; in "flow" mode arrows are fixed */
+  const xOffset = (mode === 'body') ? -(xE * 0.3) % 80 : 0;
   for (let r = 0; r < rows; r++) {
-    const x0 = 40;
+    const x0 = 40 + xOffset;
     const y0 = 40 + r * 60;
     const dx = arrowLen * cosA;
     const dy = -arrowLen * sinA;  // screen y inverted
@@ -259,6 +260,44 @@ function drawFlowArrows(alpha, V_T) {
     ctx.closePath();
     ctx.fill();
   }
+  ctx.restore();
+}
+
+/* ================================================================
+   VELOCITY VECTOR (body velocity arrow from aircraft CG)
+   ================================================================ */
+function drawVelocityVector(cx, cy, alpha, theta, V_T) {
+  if (V_T < 1) return;
+  /* velocity direction in screen coords: flight path angle γ = θ − α */
+  const gamma = theta - alpha;
+  const len = Math.min(80, V_T * 0.35);
+  const dx = len * Math.cos(-gamma);   // screen: right = positive x
+  const dy = len * Math.sin(-gamma);   // screen: down  = positive y (negated for proper direction)
+
+  ctx.save();
+  ctx.strokeStyle = '#ffee58';
+  ctx.fillStyle   = '#ffee58';
+  ctx.lineWidth   = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + dx, cy + dy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  /* arrowhead */
+  const a = Math.atan2(dy, dx);
+  const hl = 10;
+  ctx.beginPath();
+  ctx.moveTo(cx + dx, cy + dy);
+  ctx.lineTo(cx + dx - hl * Math.cos(a - 0.35), cy + dy - hl * Math.sin(a - 0.35));
+  ctx.lineTo(cx + dx - hl * Math.cos(a + 0.35), cy + dy - hl * Math.sin(a + 0.35));
+  ctx.closePath();
+  ctx.fill();
+
+  /* label */
+  ctx.font = '10px sans-serif';
+  ctx.fillText('V', cx + dx + 8, cy + dy - 4);
   ctx.restore();
 }
 
@@ -368,11 +407,13 @@ function render(state) {
   if (!ctx) return;
   ctx.clearRect(0, 0, W, H);
 
+  const opts     = state._viewOpts || {};
   const altitude = state.altitude != null ? state.altitude : -(state.zE || 0);
   const xE       = state.xE || 0;
   const theta    = state.theta || 0;
   const alpha    = state.alpha || 0;
   const V_T      = state.V_T || 0;
+  const mode     = opts.mode || 'flow';
 
   /* 1 — background */
   drawSky(altitude);
@@ -380,22 +421,41 @@ function render(state) {
   drawGround(altitude, xE);
 
   /* 2 — flow arrows */
-  drawFlowArrows(alpha, V_T);
+  if (opts.showFlow !== false) {
+    drawFlowArrows(alpha, V_T, xE, mode);
+  }
 
-  /* 3 — aircraft (centred) */
-  const cx = W * 0.42;
-  const cy = H * 0.42;
+  /* 3 — aircraft position */
+  let cx, cy;
+  if (mode === 'body') {
+    /* "Static Flow / Moving Body" — aircraft shifts based on xE */
+    cx = W * 0.2 + (xE * 0.01) % (W * 0.6);
+    cy = H * 0.42 + (altitude < 500 ? (500 - altitude) * 0.15 : 0);
+  } else {
+    /* "Static Body / Moving Flow" — aircraft centred */
+    cx = W * 0.42;
+    cy = H * 0.42;
+  }
   drawAircraft(cx, cy, theta);
 
   /* 4 — force arrows */
-  drawForceArrows(cx, cy, theta, state.forces);
+  if (opts.showForces !== false) {
+    drawForceArrows(cx, cy, theta, state.forces);
+  }
 
-  /* 5 — attitude indicator */
+  /* 5 — velocity vector */
+  if (opts.showVelVec !== false) {
+    drawVelocityVector(cx, cy, alpha, theta, V_T);
+  }
+
+  /* 6 — attitude indicator */
   drawAttitudeIndicator(W * 0.35, H - 80, 55, theta, state.q || 0);
 
-  /* 6 — HUD text + force readout */
-  drawHUD(state);
-  drawForceReadout(state.forces);
+  /* 7 — HUD text + force readout */
+  if (opts.showHud !== false) {
+    drawHUD(state);
+    drawForceReadout(state.forces);
+  }
 }
 
 /* ================================================================

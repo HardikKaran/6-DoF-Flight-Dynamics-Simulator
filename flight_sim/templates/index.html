@@ -16,8 +16,8 @@
       background: #0d1117;
       color: #c9d1d9;
       display: grid;
-      grid-template-columns: 1fr 320px;
-      grid-template-rows: 1fr 110px;
+      grid-template-columns: 1fr 340px;
+      grid-template-rows: 1fr 100px;
       grid-template-areas:
         "canvas panel"
         "bar    bar";
@@ -38,36 +38,40 @@
       background: #161b22;
       border-left: 1px solid #30363d;
       overflow-y: auto;
-      padding: 12px 14px;
+      padding: 10px 12px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 6px;
+      font-size: 12px;
     }
+    #panel::-webkit-scrollbar { width: 5px; }
+    #panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
     #panel h2 {
-      font-size: 14px;
+      font-size: 13px;
       color: #58a6ff;
       border-bottom: 1px solid #21262d;
-      padding-bottom: 4px;
-      margin-bottom: 2px;
+      padding-bottom: 3px;
+      margin: 4px 0 2px;
     }
     .row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 12px;
-      padding: 2px 0;
+      font-size: 11px;
+      padding: 1px 0;
     }
     .row .label { color: #8b949e; }
-    .row .value { color: #e6edf3; font-weight: 600; min-width: 80px; text-align: right; }
+    .row .value { color: #e6edf3; font-weight: 600; min-width: 85px; text-align: right; }
 
     /* sliders */
-    .slider-row { display: flex; flex-direction: column; gap: 2px; padding: 3px 0; }
-    .slider-row label { font-size: 11px; color: #8b949e; }
+    .slider-row { display: flex; flex-direction: column; gap: 1px; padding: 2px 0; }
+    .slider-row label { font-size: 10px; color: #8b949e; display: flex; justify-content: space-between; }
+    .slider-row label .sv { color: #58a6ff; font-weight: 600; }
     .slider-row input[type=range] {
       -webkit-appearance: none;
       appearance: none;
       width: 100%;
-      height: 6px;
+      height: 5px;
       background: #21262d;
       border-radius: 3px;
       outline: none;
@@ -75,7 +79,7 @@
     .slider-row input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 14px; height: 14px;
+      width: 12px; height: 12px;
       background: #58a6ff;
       border-radius: 50%;
       cursor: pointer;
@@ -84,8 +88,8 @@
     /* buttons */
     .btn {
       font-family: inherit;
-      font-size: 12px;
-      padding: 6px 10px;
+      font-size: 11px;
+      padding: 5px 8px;
       border: 1px solid #30363d;
       background: #21262d;
       color: #c9d1d9;
@@ -94,17 +98,30 @@
       transition: background 0.15s;
     }
     .btn:hover { background: #30363d; }
+    .btn.active { background: #1f6feb; border-color: #58a6ff; color: #fff; }
     .btn-danger { border-color: #f85149; color: #f85149; }
     .btn-danger:hover { background: #f8514922; }
-    .btn-group { display: flex; gap: 6px; }
+    .btn-group { display: flex; gap: 5px; flex-wrap: wrap; }
 
     /* connection badge */
     #conn-status {
-      font-size: 10px;
-      padding: 2px 8px;
+      font-size: 9px;
+      padding: 1px 7px;
       border-radius: 10px;
       border: 1px solid #30363d;
       display: inline-block;
+    }
+
+    /* select */
+    select {
+      font-family: inherit;
+      font-size: 10px;
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      padding: 2px 4px;
+      outline: none;
     }
 
     /* ── BOTTOM BAR ─────────────────────────────── */
@@ -115,32 +132,90 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 18px;
-      gap: 24px;
+      padding: 6px 16px;
+      gap: 16px;
     }
     #bottom-bar section {
       display: flex;
-      gap: 18px;
-      font-size: 12px;
+      gap: 14px;
+      font-size: 11px;
     }
     .force-item { display: flex; flex-direction: column; align-items: center; }
-    .force-item .fl { font-size: 10px; color: #8b949e; }
-    .force-item .fv { font-size: 13px; font-weight: 600; color: #e6edf3; }
+    .force-item .fl { font-size: 9px; color: #8b949e; }
+    .force-item .fv { font-size: 12px; font-weight: 600; color: #e6edf3; }
 
     .keyboard-hint {
-      font-size: 10px;
+      font-size: 9px;
       color: #484f58;
       text-align: center;
-      line-height: 1.5;
+      line-height: 1.4;
     }
     kbd {
       display: inline-block;
-      padding: 1px 5px;
-      font-size: 10px;
+      padding: 0px 4px;
+      font-size: 9px;
       background: #21262d;
       border: 1px solid #30363d;
       border-radius: 3px;
       color: #8b949e;
+    }
+
+    /* ── PARAMETER EDITOR OVERLAY ───────────────── */
+    #param-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    #param-overlay.open { display: flex; }
+    #param-editor {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 18px 22px;
+      width: 520px;
+      max-height: 80vh;
+      overflow-y: auto;
+      color: #c9d1d9;
+    }
+    #param-editor h2 {
+      font-size: 15px;
+      color: #58a6ff;
+      margin-bottom: 10px;
+    }
+    #param-editor .pe-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 16px;
+    }
+    #param-editor .pe-field {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #param-editor .pe-field label {
+      font-size: 10px;
+      color: #8b949e;
+    }
+    #param-editor .pe-field input {
+      font-family: inherit;
+      font-size: 12px;
+      background: #0d1117;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      padding: 4px 6px;
+      outline: none;
+    }
+    #param-editor .pe-field input:focus { border-color: #58a6ff; }
+    #param-editor .pe-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      justify-content: flex-end;
     }
   </style>
 </head>
@@ -152,36 +227,59 @@
   <!-- ═══ RIGHT PANEL ════════════════════════════════════════ -->
   <div id="panel">
 
-    <!-- Title -->
+    <!-- Title row -->
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:15px;font-weight:600;color:#e6edf3">P.180 Avanti</span>
+      <span style="font-size:14px;font-weight:600;color:#e6edf3">P.180 Avanti</span>
       <span id="conn-status" style="color:#f85149">Connecting…</span>
     </div>
 
-    <!-- States -->
+    <!-- ─── States (read-only) ───────────────────── -->
     <h2>States</h2>
-    <div class="row"><span class="label">Airspeed</span>     <span class="value" id="val-speed">—</span></div>
-    <div class="row"><span class="label">Altitude</span>     <span class="value" id="val-altitude">—</span></div>
-    <div class="row"><span class="label">Mach</span>         <span class="value" id="val-mach">—</span></div>
-    <div class="row"><span class="label">AoA (α)</span>      <span class="value" id="val-alpha">—</span></div>
-    <div class="row"><span class="label">Pitch (θ)</span>    <span class="value" id="val-theta">—</span></div>
-    <div class="row"><span class="label">Pitch rate (q)</span><span class="value" id="val-q">—</span></div>
+    <div class="row"><span class="label">Airspeed (V<sub>T</sub>)</span>  <span class="value" id="val-speed">—</span></div>
+    <div class="row"><span class="label">Altitude (h)</span>              <span class="value" id="val-altitude">—</span></div>
+    <div class="row"><span class="label">Mach</span>                      <span class="value" id="val-mach">—</span></div>
+    <div class="row"><span class="label">AoA (α)</span>                   <span class="value" id="val-alpha">—</span></div>
+    <div class="row"><span class="label">Pitch (θ)</span>                 <span class="value" id="val-theta">—</span></div>
+    <div class="row"><span class="label">Pitch rate (q)</span>            <span class="value" id="val-q">—</span></div>
+    <div class="row"><span class="label">Flight path (γ)</span>           <span class="value" id="val-gamma">—</span></div>
 
-    <!-- Pilot Inputs -->
+    <!-- ─── Pilot Inputs (interactive) ───────────── -->
     <h2>Pilot Inputs</h2>
-    <div class="row"><span class="label">Elevator (δe)</span><span class="value" id="val-de">0.0°</span></div>
     <div class="slider-row">
-      <label>Elevator δe (°)</label>
+      <label>Elevator δe <span class="sv" id="sv-de">0.0°</span></label>
       <input type="range" id="slider-de" min="-20" max="20" step="0.5" value="0">
     </div>
-    <div class="row"><span class="label">Throttle</span><span class="value" id="val-throttle">50%</span></div>
     <div class="slider-row">
-      <label>Throttle (%)</label>
+      <label>Throttle <span class="sv" id="sv-thr">50%</span></label>
       <input type="range" id="slider-throttle" min="0" max="100" step="1" value="50">
     </div>
+    <div class="slider-row">
+      <label>Tail setting angle (i<sub>H</sub>) <span class="sv" id="sv-ih">0.0°</span></label>
+      <input type="range" id="slider-ih" min="-5" max="5" step="0.1" value="0">
+    </div>
 
-    <!-- Forces -->
-    <h2>Forces</h2>
+    <!-- ─── Parameters ───────────────────────────── -->
+    <h2>Parameters</h2>
+    <div class="slider-row">
+      <label>Init Altitude <span class="sv" id="sv-alt">9144 m</span></label>
+      <input type="range" id="slider-alt" min="0" max="15000" step="100" value="9144">
+    </div>
+    <div class="slider-row">
+      <label>Init Velocity <span class="sv" id="sv-vel">180 m/s</span></label>
+      <input type="range" id="slider-vel" min="30" max="250" step="1" value="180">
+    </div>
+    <div class="slider-row">
+      <label>Fuel <span class="sv" id="sv-fuel">100%</span></label>
+      <input type="range" id="slider-fuel" min="10" max="100" step="1" value="100">
+    </div>
+
+    <!-- ─── Forces ───────────────────────────────── -->
+    <h2>Forces
+      <select id="force-frame" style="float:right;margin-top:-2px">
+        <option value="body" selected>Body Axis</option>
+        <option value="earth">Earth Axis</option>
+      </select>
+    </h2>
     <div class="row"><span class="label">Lift</span>     <span class="value" id="val-lift">—</span></div>
     <div class="row"><span class="label">Drag</span>     <span class="value" id="val-drag">—</span></div>
     <div class="row"><span class="label">Thrust</span>   <span class="value" id="val-thrust">—</span></div>
@@ -189,20 +287,48 @@
     <div class="row"><span class="label">ΣZ</span>       <span class="value" id="val-fz">—</span></div>
     <div class="row"><span class="label">ΣM</span>       <span class="value" id="val-fm">—</span></div>
 
-    <!-- Buttons -->
+    <!-- ─── Mode Buttons ─────────────────────────── -->
+    <h2>View Mode</h2>
+    <div class="btn-group">
+      <button class="btn active" id="btn-mode-flow">Static Body / Moving Flow</button>
+      <button class="btn" id="btn-mode-body">Static Flow / Moving Body</button>
+    </div>
+
+    <!-- ─── Display toggles ──────────────────────── -->
+    <h2>Display</h2>
+    <div class="btn-group">
+      <button class="btn active" id="btn-toggle-forces">Force Arrows</button>
+      <button class="btn active" id="btn-toggle-flow">Flow Arrows</button>
+      <button class="btn active" id="btn-toggle-vel">Velocity Vector</button>
+      <button class="btn active" id="btn-toggle-hud">HUD</button>
+    </div>
+    <div class="btn-group" style="margin-top:4px">
+      <button class="btn" id="btn-datum-fp">Flight Path</button>
+      <button class="btn active" id="btn-datum-ac">Aircraft Datum</button>
+    </div>
+
+    <!-- ─── Action Buttons ───────────────────────── -->
     <div class="btn-group" style="margin-top:6px">
       <button class="btn" id="btn-pause">⏸ Pause</button>
       <button class="btn btn-danger" id="btn-reset">↺ Reset</button>
+      <button class="btn" id="btn-params">⚙ Params</button>
     </div>
 
-    <div class="keyboard-hint">
+    <div class="keyboard-hint" style="margin-top:4px">
       <kbd>↑</kbd><kbd>↓</kbd> Elevator &nbsp;
-      <kbd>W</kbd><kbd>S</kbd> Throttle
+      <kbd>W</kbd><kbd>S</kbd> Throttle &nbsp;
+      <kbd>R</kbd> Reset &nbsp;
+      <kbd>P</kbd> Pause
     </div>
   </div>
 
   <!-- ═══ BOTTOM BAR ═════════════════════════════════════════ -->
   <footer id="bottom-bar">
+    <section id="bar-axis-info">
+      <div class="force-item"><span class="fl">x<sub>E</sub></span>  <span class="fv" id="bar-xe">—</span></div>
+      <div class="force-item"><span class="fl">z<sub>E</sub></span>  <span class="fv" id="bar-ze">—</span></div>
+    </section>
+
     <section id="force-readouts">
       <div class="force-item"><span class="fl">Lift</span>    <span class="fv" id="bar-lift">—</span></div>
       <div class="force-item"><span class="fl">Drag</span>    <span class="fv" id="bar-drag">—</span></div>
@@ -211,15 +337,45 @@
     </section>
 
     <div class="keyboard-hint" style="flex:1;text-align:center">
-      Piaggio P.180 Avanti · 6-DoF Longitudinal Sim · Phase 2
+      Piaggio P.180 Avanti · Longitudinal Sim
     </div>
 
     <section>
       <div class="force-item"><span class="fl">V<sub>T</sub></span>  <span class="fv" id="bar-vt">—</span></div>
       <div class="force-item"><span class="fl">Alt</span>            <span class="fv" id="bar-alt">—</span></div>
       <div class="force-item"><span class="fl">α</span>              <span class="fv" id="bar-alpha">—</span></div>
+      <div class="force-item"><span class="fl">θ</span>              <span class="fv" id="bar-theta">—</span></div>
     </section>
   </footer>
+
+  <!-- ═══ PARAMETER EDITOR OVERLAY ═══════════════════════════ -->
+  <div id="param-overlay">
+    <div id="param-editor">
+      <h2>Aircraft Parameters — Piaggio P.180 Avanti</h2>
+      <div class="pe-grid">
+        <div class="pe-field"><label>Mass m (kg)</label>            <input id="pe-m"     type="number" step="1"     value="4836"></div>
+        <div class="pe-field"><label>x<sub>CG</sub> (m)</label>    <input id="pe-xcg"   type="number" step="0.01"  value="7.4055"></div>
+        <div class="pe-field"><label>S<sub>ref</sub> (m²)</label>  <input id="pe-sref"  type="number" step="0.01"  value="16.00"></div>
+        <div class="pe-field"><label>AR<sub>wing</sub></label>     <input id="pe-ar"    type="number" step="0.01"  value="12.31"></div>
+        <div class="pe-field"><label>P<sub>max</sub> (W ea.)</label><input id="pe-pmax" type="number" step="1000"  value="634000"></div>
+        <div class="pe-field"><label>CD<sub>0</sub></label>        <input id="pe-cd0"   type="number" step="0.001" value="0.022"></div>
+        <div class="pe-field"><label>I<sub>yy</sub> (kg·m²)</label><input id="pe-iyy"   type="number" step="100"   value="75290"></div>
+        <div class="pe-field"><label>c̄ (m)</label>                 <input id="pe-cbar"  type="number" step="0.01"  value="1.18"></div>
+        <div class="pe-field"><label>a<sub>wing</sub> (1/rad)</label><input id="pe-aw"  type="number" step="0.01"  value="8.17"></div>
+        <div class="pe-field"><label>a<sub>canard</sub> (1/rad)</label><input id="pe-ac" type="number" step="0.01" value="3.40"></div>
+        <div class="pe-field"><label>a<sub>tail</sub> (1/rad)</label><input id="pe-ah"  type="number" step="0.01"  value="4.23"></div>
+        <div class="pe-field"><label>a<sub>elevator</sub> (1/rad)</label><input id="pe-ae" type="number" step="0.01" value="3.08"></div>
+        <div class="pe-field"><label>dε/dα (tail)</label>           <input id="pe-deda" type="number" step="0.01"  value="0.32"></div>
+        <div class="pe-field"><label>dε<sub>U</sub>/dα (canard)</label><input id="pe-deuda" type="number" step="0.01" value="0.15"></div>
+        <div class="pe-field"><label>CM<sub>0W</sub></label>       <input id="pe-cm0w" type="number" step="0.01"  value="-0.46"></div>
+        <div class="pe-field"><label>dCM/dα fus (1/rad)</label>    <input id="pe-cmfus" type="number" step="0.01" value="0.76"></div>
+      </div>
+      <div class="pe-actions">
+        <button class="btn" id="pe-load">✓ Load</button>
+        <button class="btn" id="pe-exit">✕ Exit</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ═══ SCRIPTS ════════════════════════════════════════════ -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>

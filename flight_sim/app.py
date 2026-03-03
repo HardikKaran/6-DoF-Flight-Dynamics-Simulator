@@ -39,16 +39,21 @@ sim = {
     'state':     None,   # np.ndarray (6,)
     'delta_e':   0.0,
     'throttle':  0.5,
+    'i_H':       0.0,    # tail setting angle [rad]
     'paused':    False,
     'running':   False,
     'trim_de':   0.0,
     'trim_thr':  0.5,
+    'fuel':      1.0,    # fuel fraction 0-1 (affects mass)
+    'base_mass': 4836.0, # full-fuel mass
 }
 
 
-def _init_sim():
+def _init_sim(V: float = 180.0, h: float = 9144.0):
     """(Re-)initialise from trim."""
-    state, de_trim, thr_trim = make_initial_state()
+    # Apply fuel-dependent mass
+    ac.m = sim['base_mass'] * (0.6 + 0.4 * sim['fuel'])  # min 60% mass at empty fuel
+    state, de_trim, thr_trim = make_initial_state(V=V, h=h)
     sim['state']     = state.copy()
     sim['delta_e']   = de_trim
     sim['throttle']  = thr_trim
@@ -58,7 +63,7 @@ def _init_sim():
     print(f"[sim] Trim → α={math.degrees(math.atan2(state[I_W], state[I_U])):.2f}°  "
           f"δe={math.degrees(de_trim):.2f}°  thr={thr_trim*100:.1f}%  "
           f"V={math.hypot(state[I_U], state[I_W]):.1f} m/s  "
-          f"h={-state[I_ZE]:.0f} m")
+          f"h={-state[I_ZE]:.0f} m  mass={ac.m:.0f} kg")
 
 
 def _build_state_dict() -> dict:
@@ -94,6 +99,11 @@ def _build_state_dict() -> dict:
         'V_T': float(V_T),
         'alpha': float(alpha),
         'mach': float(mach),
+        # Current & trim control values so the browser can sync sliders
+        'delta_e':  float(sim['delta_e']),
+        'throttle': float(sim['throttle']),
+        'trim_de':  float(sim['trim_de']),
+        'trim_thr': float(sim['trim_thr']),
         'forces': {
             'X': float(fm['X']),
             'Z': float(fm['Z']),
@@ -172,14 +182,22 @@ def on_controls(data):
             sim['delta_e'] = float(data['delta_e'])
         if 'throttle' in data:
             sim['throttle'] = float(data['throttle'])
+        if 'i_H' in data:
+            # Update tail setting angle on the aircraft module
+            ac.tail.i = float(data['i_H'])
 
 
 @socketio.on('reset')
-def on_reset():
-    """Re-initialise to trim condition."""
-    print("[ws] reset requested")
+def on_reset(data=None):
+    """Re-initialise to trim condition with optional altitude/velocity/fuel."""
+    data = data or {}
+    h = float(data.get('altitude', 9144))
+    v = float(data.get('velocity', 180))
+    fuel = float(data.get('fuel', 1.0))
+    sim['fuel'] = max(0.1, min(1.0, fuel))
+    print(f"[ws] reset requested  V={v} m/s  h={h} m  fuel={sim['fuel']*100:.0f}%")
     with sim_lock:
-        _init_sim()
+        _init_sim(V=v, h=h)
     emit('state', _build_state_dict())
 
 
@@ -187,6 +205,36 @@ def on_reset():
 def on_pause(data):
     sim['paused'] = bool(data.get('paused', False))
     print(f"[ws] paused = {sim['paused']}")
+
+
+@socketio.on('update_params')
+def on_update_params(data):
+    """Update aircraft parameters from the browser editor."""
+    print(f"[ws] update_params: {data}")
+    with sim_lock:
+        if 'm' in data:          ac.m = float(data['m']); sim['base_mass'] = ac.m
+        if 'x_CG' in data:       ac.x_CG = float(data['x_CG'])
+        if 'S_ref' in data:      ac.wing.S = float(data['S_ref']); ac.S_ref = ac.wing.S
+        if 'AR_wing' in data:    ac.wing.AR = float(data['AR_wing']); ac.AR_ref = ac.wing.AR
+        if 'P_max' in data:      ac.P_max = float(data['P_max']); ac.P_max_total = ac.P_max * ac.engines
+        if 'CD0' in data:        ac.CD0 = float(data['CD0'])
+        if 'Iyy' in data:        ac.Iyy = float(data['Iyy'])
+        if 'c_bar' in data:      ac.wing.c_bar = float(data['c_bar']); ac.c_ref = ac.wing.c_bar
+        if 'a_wing' in data:     ac.wing.a = float(data['a_wing'])
+        if 'a_canard' in data:   ac.canard.a = float(data['a_canard'])
+        if 'a_tail' in data:     ac.tail.a = float(data['a_tail'])
+        if 'a_E' in data:        ac.a_E = float(data['a_E'])
+        if 'de_da' in data:      ac.tail.de_da = float(data['de_da'])
+        if 'deu_da' in data:     ac.canard.de_da = float(data['deu_da'])
+        if 'CM0_W' in data:      ac.wing.CM0 = float(data['CM0_W'])
+        if 'dCM_da_fus' in data: ac.dCM_da_fus = float(data['dCM_da_fus'])
+        # Re-init aero precomputed values
+        try:
+            from physics.aero import _precompute
+            _precompute()
+        except Exception:
+            pass
+    print(f"[ws] params updated — m={ac.m}, Iyy={ac.Iyy}, CD0={ac.CD0}")
 
 
 # ══════════════════════════════════════════════════════════════════
