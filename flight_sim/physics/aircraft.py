@@ -150,6 +150,13 @@ b_T         = 0.0           # trim-tab hinge moment slope   [1/rad]
 
 
 # ══════════════════════════════════════════════════════════════════
+#  AILERON & RUDDER CONTROL SURFACES
+# ══════════════════════════════════════════════════════════════════
+delta_a_max = deg2rad(20.0)   # max aileron deflection  ±20°
+delta_r_max = deg2rad(25.0)   # max rudder deflection   ±25°
+
+
+# ══════════════════════════════════════════════════════════════════
 #  PROPULSION 
 # ══════════════════════════════════════════════════════════════════
 z_T = 0.97                     # thrust-line position above baseline [m]
@@ -174,6 +181,41 @@ Ixz     = 3_936                # cross-product 2nd moment of inertia [kg m²]
 
 
 # ══════════════════════════════════════════════════════════════════
+#  LATERAL-DIRECTIONAL STABILITY DERIVATIVES
+# ══════════════════════════════════════════════════════════════════
+# All dimensionless, per radian.  Forces normalised by q̄·S_ref;
+# moments normalised by q̄·S_ref·b_ref.
+# Hat notation: p̂ = p·b/(2V), r̂ = r·b/(2V).
+#
+# Estimated for a Piaggio P.180–class three-surface turboprop using
+# methods from Nelson §3.5, Cook §4.3, and Etkin Ch. 5.
+# Values cross-checked against Roskam "Airplane Design" Part VI
+# tables for similar-class twin-engine turboprop aircraft.
+# ──────────────────────────────────────────────────────────────────
+
+# Side-force coefficients
+CY_beta  = -0.75     # dCY/dβ   (vertical tail + fuselage)
+CY_p     =  0.0      # dCY/dp̂   (negligible)
+CY_r     =  0.28     # dCY/dr̂
+CY_da    =  0.0      # dCY/dδa  (negligible for conventional ailerons)
+CY_dr    =  0.19     # dCY/dδr
+
+# Rolling-moment coefficients
+Cl_beta  = -0.09     # dCl/dβ   (dihedral effect; negative → stable)
+Cl_p     = -0.47     # dCl/dp̂   (roll damping; always negative)
+Cl_r     =  0.07     # dCl/dr̂   (positive: yaw right → roll right)
+Cl_da    =  0.08     # dCl/dδa  (aileron roll effectiveness)
+Cl_dr    =  0.008    # dCl/dδr  (rudder-roll coupling; small)
+
+# Yawing-moment coefficients
+Cn_beta  =  0.12     # dCn/dβ   (weathercock stability; positive → stable)
+Cn_p     = -0.03     # dCn/dp̂   (adverse yaw due to roll rate)
+Cn_r     = -0.15     # dCn/dr̂   (yaw damping; always negative)
+Cn_da    = -0.015    # dCn/dδa  (adverse yaw from ailerons)
+Cn_dr    = -0.07     # dCn/dδr  (rudder yaw effectiveness)
+
+
+# ══════════════════════════════════════════════════════════════════
 #  OPERATING CONDITIONS — cruise 
 # ══════════════════════════════════════════════════════════════════
 h_cruise_ft  = 30_000                # cruise altitude [ft]
@@ -193,3 +235,4 @@ g = 9.81 # m/s²  gravitational acceleration
 S_ref  = wing.S                # 16.00 m²
 c_ref  = wing.c_bar            # 1.18  m
 AR_ref = wing.AR               # 12.31
+b_ref  = wingspan              # 14.033 m  (reference span for lateral derivatives)

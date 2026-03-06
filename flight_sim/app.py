@@ -20,7 +20,9 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
 from physics.eom import (rk4_step, make_initial_state, compute_derivatives,
-                          I_U, I_W, I_Q, I_TH, I_XE, I_ZE, DT_DEFAULT)
+                          I_U, I_V, I_W, I_P, I_Q, I_R,
+                          I_PHI, I_TH, I_PSI, I_XE, I_YE, I_ZE,
+                          DT_DEFAULT)
 from physics.aero import compute_aero
 from physics import aircraft as ac
 
@@ -36,8 +38,10 @@ socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 # ══════════════════════════════════════════════════════════════════
 sim_lock = threading.Lock()
 sim = {
-    'state':     None,   # np.ndarray (6,)
+    'state':     None,   # np.ndarray (12,)
     'delta_e':   0.0,
+    'delta_a':   0.0,    # aileron [rad]
+    'delta_r':   0.0,    # rudder  [rad]
     'throttle':  0.5,
     'i_H':       0.0,    # tail setting angle [rad]
     'paused':    False,
@@ -55,8 +59,8 @@ def _init_sim(V: float = 180.0, h: float = 9144.0):
     ac.m = sim['base_mass'] * (0.6 + 0.4 * sim['fuel'])  # min 60% mass at empty fuel
     state, de_trim, thr_trim = make_initial_state(V=V, h=h)
     sim['state']     = state.copy()
-    sim['delta_e']   = de_trim
-    sim['throttle']  = thr_trim
+    sim['delta_e']   = de_trim    sim['delta_a']   = 0.0
+    sim['delta_r']   = 0.0    sim['throttle']  = thr_trim
     sim['trim_de']   = de_trim
     sim['trim_thr']  = thr_trim
     sim['paused']    = False
@@ -69,50 +73,68 @@ def _init_sim(V: float = 180.0, h: float = 9144.0):
 def _build_state_dict() -> dict:
     """Pack current sim state into a JSON-safe dict for the browser."""
     s = sim['state']
-    U, W, q, theta = s[I_U], s[I_W], s[I_Q], s[I_TH]
-    xE, zE = s[I_XE], s[I_ZE]
+    U, V, W = s[I_U], s[I_V], s[I_W]
+    p, q, r = s[I_P], s[I_Q], s[I_R]
+    phi, theta, psi = s[I_PHI], s[I_TH], s[I_PSI]
+    xE, yE, zE = s[I_XE], s[I_YE], s[I_ZE]
     altitude = -zE
 
     # Aero snapshot (for force arrows / readouts)
-    fm = compute_aero(U, W, q, theta, sim['delta_e'], sim['throttle'], altitude)
+    fm = compute_aero(U, V, W, p, q, r, phi, theta,
+                      sim['delta_e'], sim['delta_a'], sim['delta_r'],
+                      sim['throttle'], altitude)
 
     V_T = fm['V_T']
     alpha = fm['alpha']
-    mach = V_T / max(1.0, fm.get('a', 303.0))  # approximate
-    # Compute mach from atmosphere if available
+    beta  = fm.get('beta', 0.0)
+    # Compute Mach from atmosphere
     try:
         from physics.atmosphere import speed_of_sound
-        mach = V_T / speed_of_sound(altitude)
+        mach = V_T / speed_of_sound(max(altitude, 0.0))
     except Exception:
-        pass
+        mach = V_T / 303.0
 
     W_force = ac.m * ac.g  # weight in N
 
     return {
         'U': float(U),
+        'V': float(V),
         'W': float(W),
+        'p': float(p),
         'q': float(q),
+        'r': float(r),
+        'phi':   float(phi),
         'theta': float(theta),
+        'psi':   float(psi),
         'xE': float(xE),
+        'yE': float(yE),
         'zE': float(zE),
         'altitude': float(altitude),
-        'V_T': float(V_T),
+        'V_T':   float(V_T),
         'alpha': float(alpha),
-        'mach': float(mach),
+        'beta':  float(beta),
+        'mach':  float(mach),
         # Current & trim control values so the browser can sync sliders
         'delta_e':  float(sim['delta_e']),
+        'delta_a':  float(sim['delta_a']),
+        'delta_r':  float(sim['delta_r']),
         'throttle': float(sim['throttle']),
         'trim_de':  float(sim['trim_de']),
         'trim_thr': float(sim['trim_thr']),
         'forces': {
             'X': float(fm['X']),
+            'Y': float(fm['Y']),
             'Z': float(fm['Z']),
+            'L_lat': float(fm['L_lat']),
             'M': float(fm['M']),
+            'N': float(fm['N']),
             'CL': float(fm['CL']),
             'CD': float(fm['CD']),
+            'CY': float(fm.get('CY', 0.0)),
             'T': float(fm['T']),
             'L_aero': float(fm['L_aero']),
             'D_aero': float(fm['D_aero']),
+            'Y_aero': float(fm.get('Y_aero', 0.0)),
             'W_force': float(W_force),
         },
     }
@@ -133,6 +155,8 @@ def physics_loop():
             with sim_lock:
                 sim['state'] = rk4_step(sim['state'],
                                         sim['delta_e'],
+                                        sim['delta_a'],
+                                        sim['delta_r'],
                                         sim['throttle'],
                                         dt)
             try:
@@ -180,6 +204,10 @@ def on_controls(data):
     with sim_lock:
         if 'delta_e' in data:
             sim['delta_e'] = float(data['delta_e'])
+        if 'delta_a' in data:
+            sim['delta_a'] = float(data['delta_a'])
+        if 'delta_r' in data:
+            sim['delta_r'] = float(data['delta_r'])
         if 'throttle' in data:
             sim['throttle'] = float(data['throttle'])
         if 'i_H' in data:

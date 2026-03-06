@@ -239,8 +239,13 @@
     <div class="row"><span class="label">Altitude (h)</span>              <span class="value" id="val-altitude">—</span></div>
     <div class="row"><span class="label">Mach</span>                      <span class="value" id="val-mach">—</span></div>
     <div class="row"><span class="label">AoA (α)</span>                   <span class="value" id="val-alpha">—</span></div>
+    <div class="row"><span class="label">Sideslip (β)</span>              <span class="value" id="val-beta">—</span></div>
     <div class="row"><span class="label">Pitch (θ)</span>                 <span class="value" id="val-theta">—</span></div>
+    <div class="row"><span class="label">Bank (Φ)</span>                  <span class="value" id="val-phi">—</span></div>
+    <div class="row"><span class="label">Heading (Ψ)</span>               <span class="value" id="val-psi">—</span></div>
     <div class="row"><span class="label">Pitch rate (q)</span>            <span class="value" id="val-q">—</span></div>
+    <div class="row"><span class="label">Roll rate (p)</span>             <span class="value" id="val-p">—</span></div>
+    <div class="row"><span class="label">Yaw rate (r)</span>              <span class="value" id="val-r">—</span></div>
     <div class="row"><span class="label">Flight path (γ)</span>           <span class="value" id="val-gamma">—</span></div>
 
     <!-- ─── Pilot Inputs (interactive) ───────────── -->
@@ -256,6 +261,14 @@
     <div class="slider-row">
       <label>Tail setting angle (i<sub>H</sub>) <span class="sv" id="sv-ih">0.0°</span></label>
       <input type="range" id="slider-ih" min="-5" max="5" step="0.1" value="0">
+    </div>
+    <div class="slider-row">
+      <label>Aileron δa <span class="sv" id="sv-da">0.0°</span></label>
+      <input type="range" id="slider-da" min="-20" max="20" step="0.5" value="0">
+    </div>
+    <div class="slider-row">
+      <label>Rudder δr <span class="sv" id="sv-dr">0.0°</span></label>
+      <input type="range" id="slider-dr" min="-25" max="25" step="0.5" value="0">
     </div>
 
     <!-- ─── Parameters ───────────────────────────── -->
@@ -284,8 +297,11 @@
     <div class="row"><span class="label">Drag</span>     <span class="value" id="val-drag">—</span></div>
     <div class="row"><span class="label">Thrust</span>   <span class="value" id="val-thrust">—</span></div>
     <div class="row"><span class="label">ΣX</span>       <span class="value" id="val-fx">—</span></div>
+    <div class="row"><span class="label">ΣY</span>       <span class="value" id="val-fy">—</span></div>
     <div class="row"><span class="label">ΣZ</span>       <span class="value" id="val-fz">—</span></div>
-    <div class="row"><span class="label">ΣM</span>       <span class="value" id="val-fm">—</span></div>
+    <div class="row"><span class="label">ΣL (roll)</span> <span class="value" id="val-fl">—</span></div>
+    <div class="row"><span class="label">ΣM (pitch)</span><span class="value" id="val-fm">—</span></div>
+    <div class="row"><span class="label">ΣN (yaw)</span>  <span class="value" id="val-fn">—</span></div>
 
     <!-- ─── Mode Buttons ─────────────────────────── -->
     <h2>View Mode</h2>
@@ -317,6 +333,8 @@
     <div class="keyboard-hint" style="margin-top:4px">
       <kbd>↑</kbd><kbd>↓</kbd> Elevator &nbsp;
       <kbd>W</kbd><kbd>S</kbd> Throttle &nbsp;
+      <kbd>A</kbd><kbd>D</kbd> Aileron &nbsp;
+      <kbd>Q</kbd><kbd>E</kbd> Rudder &nbsp;
       <kbd>R</kbd> Reset &nbsp;
       <kbd>P</kbd> Pause
     </div>
@@ -326,6 +344,7 @@
   <footer id="bottom-bar">
     <section id="bar-axis-info">
       <div class="force-item"><span class="fl">x<sub>E</sub></span>  <span class="fv" id="bar-xe">—</span></div>
+      <div class="force-item"><span class="fl">y<sub>E</sub></span>  <span class="fv" id="bar-ye">—</span></div>
       <div class="force-item"><span class="fl">z<sub>E</sub></span>  <span class="fv" id="bar-ze">—</span></div>
     </section>
 
@@ -337,7 +356,7 @@
     </section>
 
     <div class="keyboard-hint" style="flex:1;text-align:center">
-      Piaggio P.180 Avanti · Longitudinal Sim
+      Piaggio P.180 Avanti · Full 6-DOF Sim
     </div>
 
     <section>
@@ -345,6 +364,8 @@
       <div class="force-item"><span class="fl">Alt</span>            <span class="fv" id="bar-alt">—</span></div>
       <div class="force-item"><span class="fl">α</span>              <span class="fv" id="bar-alpha">—</span></div>
       <div class="force-item"><span class="fl">θ</span>              <span class="fv" id="bar-theta">—</span></div>
+      <div class="force-item"><span class="fl">Φ</span>              <span class="fv" id="bar-phi">—</span></div>
+      <div class="force-item"><span class="fl">Ψ</span>              <span class="fv" id="bar-psi">—</span></div>
     </section>
   </footer>
 

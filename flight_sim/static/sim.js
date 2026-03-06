@@ -11,16 +11,22 @@
 const controls = {
   delta_e:  0.0,   // elevator deflection, rad (positive = nose-up)
   throttle: 0.5,   // 0-1
-  delta_a:  0.0,   // aileron (future)
-  delta_r:  0.0,   // rudder  (future)
+  delta_a:  0.0,   // aileron deflection, rad (positive = roll right)
+  delta_r:  0.0,   // rudder deflection, rad  (positive = TE-to-port → yaw left)
   i_H:      0.0,   // tail setting angle, rad
 };
 
-/* keyboard rate (rad per held-frame for δe, fraction for throttle) */
+/* keyboard rate (rad per held-frame for δe/δa/δr, fraction for throttle) */
 const DE_RATE = 0.005;    // ~0.29 deg/frame → ~17 deg/s at 60fps
+const DA_RATE = 0.005;    // aileron rate
+const DR_RATE = 0.005;    // rudder rate
 const TH_RATE = 0.008;
 const DE_MAX  =  0.35;    // ~20°
 const DE_MIN  = -0.35;
+const DA_MAX  =  0.35;    // ~20° aileron
+const DA_MIN  = -0.35;
+const DR_MAX  =  0.44;    // ~25° rudder
+const DR_MIN  = -0.44;
 
 /* key state map */
 const keys = {};
@@ -57,6 +63,24 @@ function readControls() {
   if (keys['w'] || keys['W']) controls.throttle = Math.min(controls.throttle + TH_RATE, 1);
   if (keys['s'] || keys['S']) controls.throttle = Math.max(controls.throttle - TH_RATE, 0);
 
+  /* aileron  (A = roll left → δa < 0,  D = roll right → δa > 0) */
+  if (keys['a'] || keys['A']) controls.delta_a = Math.max(controls.delta_a - DA_RATE, DA_MIN);
+  if (keys['d'] || keys['D']) controls.delta_a = Math.min(controls.delta_a + DA_RATE, DA_MAX);
+  /* aileron auto-centre when released */
+  if (!keys['a'] && !keys['A'] && !keys['d'] && !keys['D']) {
+    controls.delta_a *= 0.85;
+    if (Math.abs(controls.delta_a) < 0.001) controls.delta_a = 0;
+  }
+
+  /* rudder  (Q = left yaw → δr > 0,  E = right yaw → δr < 0) */
+  if (keys['q'] || keys['Q']) controls.delta_r = Math.min(controls.delta_r + DR_RATE, DR_MAX);
+  if (keys['e'] || keys['E']) controls.delta_r = Math.max(controls.delta_r - DR_RATE, DR_MIN);
+  /* rudder auto-centre when released */
+  if (!keys['q'] && !keys['Q'] && !keys['e'] && !keys['E']) {
+    controls.delta_r *= 0.85;
+    if (Math.abs(controls.delta_r) < 0.001) controls.delta_r = 0;
+  }
+
   /* sync slider display values with keyboard changes */
   syncSliderDisplay();
 }
@@ -72,6 +96,8 @@ function syncSliderDisplay() {
   set('sv-de',  (controls.delta_e * 180 / Math.PI).toFixed(1) + '°');
   set('sv-thr', (controls.throttle * 100).toFixed(0) + '%');
   set('sv-ih',  (controls.i_H * 180 / Math.PI).toFixed(1) + '°');
+  set('sv-da',  (controls.delta_a * 180 / Math.PI).toFixed(1) + '°');
+  set('sv-dr',  (controls.delta_r * 180 / Math.PI).toFixed(1) + '°');
 }
 
 /* ================================================================
@@ -92,6 +118,14 @@ function bindSliders() {
   });
   bind('slider-ih', () => {
     controls.i_H = parseFloat(document.getElementById('slider-ih').value) * Math.PI / 180;
+    syncSliderDisplay();
+  });
+  bind('slider-da', () => {
+    controls.delta_a = parseFloat(document.getElementById('slider-da').value) * Math.PI / 180;
+    syncSliderDisplay();
+  });
+  bind('slider-dr', () => {
+    controls.delta_r = parseFloat(document.getElementById('slider-dr').value) * Math.PI / 180;
     syncSliderDisplay();
   });
 
@@ -178,15 +212,23 @@ function updatePanel(state) {
   const alt = state.altitude != null ? state.altitude : -(state.zE || 0);
   const V_T = state.V_T || 0;
   const alpha = (state.alpha || 0);
+  const beta  = (state.beta  || 0);
   const theta = (state.theta || 0);
+  const phi   = (state.phi   || 0);
+  const psi   = (state.psi   || 0);
   const gamma = theta - alpha;  // flight path angle
 
   /* right panel — states */
   set('val-speed',    V_T.toFixed(1) + ' m/s');
   set('val-altitude', alt.toFixed(0) + ' m');
   set('val-alpha',    (alpha * 180 / Math.PI).toFixed(2) + '°');
+  set('val-beta',     (beta  * 180 / Math.PI).toFixed(2) + '°');
   set('val-theta',    (theta * 180 / Math.PI).toFixed(2) + '°');
+  set('val-phi',      (phi   * 180 / Math.PI).toFixed(2) + '°');
+  set('val-psi',      (psi   * 180 / Math.PI).toFixed(1) + '°');
   set('val-q',        (state.q || 0).toFixed(4) + ' rad/s');
+  set('val-p',        (state.p || 0).toFixed(4) + ' rad/s');
+  set('val-r',        (state.r || 0).toFixed(4) + ' rad/s');
   set('val-mach',     (state.mach || 0).toFixed(3));
   set('val-gamma',    (gamma * 180 / Math.PI).toFixed(2) + '°');
 
@@ -194,6 +236,7 @@ function updatePanel(state) {
   if (state.forces) {
     if (viewOpts.forceFrame === 'body') {
       set('val-fx', state.forces.X.toFixed(0) + ' N');
+      set('val-fy', (state.forces.Y || 0).toFixed(0) + ' N');
       set('val-fz', state.forces.Z.toFixed(0) + ' N');
     } else {
       /* earth-axis: rotate body forces */
@@ -201,9 +244,12 @@ function updatePanel(state) {
       const Xe =  state.forces.X * ct + state.forces.Z * st;
       const Ze = -state.forces.X * st + state.forces.Z * ct;
       set('val-fx', Xe.toFixed(0) + ' N');
+      set('val-fy', (state.forces.Y || 0).toFixed(0) + ' N');
       set('val-fz', Ze.toFixed(0) + ' N');
     }
+    set('val-fl', (state.forces.L_lat || 0).toFixed(0) + ' N·m');
     set('val-fm', state.forces.M.toFixed(0) + ' N·m');
+    set('val-fn', (state.forces.N || 0).toFixed(0) + ' N·m');
     set('val-lift', state.forces.L_aero.toFixed(0) + ' N');
     set('val-drag', state.forces.D_aero.toFixed(0) + ' N');
     set('val-thrust', state.forces.T.toFixed(0) + ' N');
@@ -219,7 +265,10 @@ function updatePanel(state) {
   set('bar-alt',   alt.toFixed(0));
   set('bar-alpha', (alpha * 180 / Math.PI).toFixed(1) + '°');
   set('bar-theta', (theta * 180 / Math.PI).toFixed(1) + '°');
+  set('bar-phi',   (phi   * 180 / Math.PI).toFixed(1) + '°');
+  set('bar-psi',   (psi   * 180 / Math.PI).toFixed(1) + '°');
   set('bar-xe',    (state.xE || 0).toFixed(0) + ' m');
+  set('bar-ye',    (state.yE || 0).toFixed(0) + ' m');
   set('bar-ze',    (state.zE || 0).toFixed(0) + ' m');
 }
 
@@ -252,13 +301,19 @@ function connectSocket() {
     if (!trimLoaded && state.trim_de != null) {
       controls.delta_e  = state.trim_de;
       controls.throttle = state.trim_thr;
+      controls.delta_a  = 0.0;
+      controls.delta_r  = 0.0;
       controls.i_H      = 0.0;
       const sliderDe = document.getElementById('slider-de');
       const sliderTh = document.getElementById('slider-throttle');
       const sliderIh = document.getElementById('slider-ih');
+      const sliderDa = document.getElementById('slider-da');
+      const sliderDr = document.getElementById('slider-dr');
       if (sliderDe) sliderDe.value = (controls.delta_e * 180 / Math.PI).toFixed(1);
       if (sliderTh) sliderTh.value = (controls.throttle * 100).toFixed(0);
       if (sliderIh) sliderIh.value = 0;
+      if (sliderDa) sliderDa.value = 0;
+      if (sliderDr) sliderDr.value = 0;
       syncSliderDisplay();
       trimLoaded = true;
       console.log(`[sim] trim synced: δe=${(controls.delta_e*180/Math.PI).toFixed(2)}°  thr=${(controls.throttle*100).toFixed(1)}%`);

@@ -304,7 +304,7 @@ function drawVelocityVector(cx, cy, alpha, theta, V_T) {
 /* ================================================================
    ATTITUDE INDICATOR  (artificial horizon mini-dial)
    ================================================================ */
-function drawAttitudeIndicator(cx, cy, radius, theta, q) {
+function drawAttitudeIndicator(cx, cy, radius, theta, phi, q) {
   ctx.save();
   ctx.translate(cx, cy);
 
@@ -320,8 +320,9 @@ function drawAttitudeIndicator(cx, cy, radius, theta, q) {
   ctx.arc(0, 0, radius - 2, 0, Math.PI * 2);
   ctx.clip();
 
-  /* sky / ground split rotated by theta */
-  ctx.rotate(-theta);
+  /* sky / ground split rotated by theta AND phi (bank) */
+  ctx.rotate(phi);        // bank (roll) rotation
+  ctx.rotate(-theta);     // then pitch
   const big = radius * 3;
   ctx.fillStyle = '#3a6abf';
   ctx.fillRect(-big, -big, big * 2, big);   // sky (top half)
@@ -365,8 +366,13 @@ function drawHUD(state) {
   const alt   = state.altitude != null ? state.altitude : -state.zE;
   const V_T   = state.V_T || 0;
   const alpha  = (state.alpha || 0) * 180 / Math.PI;
+  const beta   = (state.beta  || 0) * 180 / Math.PI;
   const theta  = (state.theta || 0) * 180 / Math.PI;
+  const phi    = (state.phi   || 0) * 180 / Math.PI;
+  const psi    = (state.psi   || 0) * 180 / Math.PI;
   const q_val  = state.q || 0;
+  const p_val  = state.p || 0;
+  const r_val  = state.r || 0;
 
   ctx.save();
   ctx.font = HUD_FONT;
@@ -377,9 +383,14 @@ function drawHUD(state) {
   const dy = 20;
   ctx.fillText(`V  ${V_T.toFixed(1)} m/s`,        x, y); y += dy;
   ctx.fillText(`Alt ${alt.toFixed(0)} m`,          x, y); y += dy;
-  ctx.fillText(`α  ${alpha.toFixed(2)}°`,          x, y); y += dy;
-  ctx.fillText(`θ  ${theta.toFixed(2)}°`,          x, y); y += dy;
+  ctx.fillText(`\u03b1  ${alpha.toFixed(2)}\u00b0`,          x, y); y += dy;
+  ctx.fillText(`\u03b2  ${beta.toFixed(2)}\u00b0`,           x, y); y += dy;
+  ctx.fillText(`\u03b8  ${theta.toFixed(2)}\u00b0`,          x, y); y += dy;
+  ctx.fillText(`\u03a6  ${phi.toFixed(2)}\u00b0`,            x, y); y += dy;
+  ctx.fillText(`\u03a8  ${psi.toFixed(1)}\u00b0`,            x, y); y += dy;
   ctx.fillText(`q  ${q_val.toFixed(4)} rad/s`,     x, y); y += dy;
+  ctx.fillText(`p  ${p_val.toFixed(4)} rad/s`,     x, y); y += dy;
+  ctx.fillText(`r  ${r_val.toFixed(4)} rad/s`,     x, y); y += dy;
   ctx.restore();
 }
 
@@ -411,7 +422,9 @@ function render(state) {
   const altitude = state.altitude != null ? state.altitude : -(state.zE || 0);
   const xE       = state.xE || 0;
   const theta    = state.theta || 0;
+  const phi      = state.phi   || 0;
   const alpha    = state.alpha || 0;
+  const beta     = state.beta  || 0;
   const V_T      = state.V_T || 0;
   const mode     = opts.mode || 'flow';
 
@@ -448,8 +461,8 @@ function render(state) {
     drawVelocityVector(cx, cy, alpha, theta, V_T);
   }
 
-  /* 6 — attitude indicator */
-  drawAttitudeIndicator(W * 0.35, H - 80, 55, theta, state.q || 0);
+  /* 6 — attitude indicator (now with bank angle) */
+  drawAttitudeIndicator(W * 0.35, H - 80, 55, theta, phi, state.q || 0);
 
   /* 7 — HUD text + force readout */
   if (opts.showHud !== false) {

@@ -120,13 +120,13 @@
 ## Phase 5 — Full 6-DOF (12 states)
 > Goal: add lateral/directional dynamics (bank, yaw, sideslip).
 
-- [ ] **5.1 Extend state vector** — add V, p, r, Φ, Ψ, yE
-- [ ] **5.2 Lateral aero derivatives** — Yv, Lv, Nv, Lp, Np, Lr, Nr, Yδa, Lδa, Nδa, Yδr, Lδr, Nδr
-- [ ] **5.3 Full Euler kinematic equations** — Φ̇, Θ̇, Ψ̇ with all trig terms
-- [ ] **5.4 Full navigation equations** — 3D body→Earth rotation matrix
-- [ ] **5.5 Aileron + rudder controls** — A/D keys, sliders
-- [ ] **5.6 Ixz coupling** — solve 2×2 system for ṗ, ṙ using Γ = Ixx·Izz − Ixz²
-- [ ] **5.7 Estimate Ixx, Izz, Ixz** — use geometric/statistical methods or literature
+- [x] **5.1 Extend state vector** — add V, p, r, Φ, Ψ, yE
+- [x] **5.2 Lateral aero derivatives** — Yv, Lv, Nv, Lp, Np, Lr, Nr, Yδa, Lδa, Nδa, Yδr, Lδr, Nδr
+- [x] **5.3 Full Euler kinematic equations** — Φ̇, Θ̇, Ψ̇ with all trig terms
+- [x] **5.4 Full navigation equations** — 3D body→Earth rotation matrix
+- [x] **5.5 Aileron + rudder controls** — A/D keys, sliders
+- [x] **5.6 Ixz coupling** — solve 2×2 system for ṗ, ṙ using Γ = Ixx·Izz − Ixz²
+- [x] **5.7 Estimate Ixx, Izz, Ixz** — use geometric/statistical methods or literature
 
 ---
 

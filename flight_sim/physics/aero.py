@@ -1,23 +1,34 @@
 """
-Aerodynamic Force & Moment Model  (Longitudinal)
-==================================================
+Aerodynamic Force & Moment Model  (Full 6-DOF)
+================================================
 Three-surface configuration: canard + wing + horizontal tail.
 All outputs in BODY axes, consistent with the EOM sign conventions.
 
 Coordinate system
 -----------------
   x — forward (out the nose)
+  y — starboard (right wing)
   z — downward (body axis, positive down)
 
 Sign conventions
 -----------------
   α   positive nose up
+  β   positive wind from starboard (positive V_body)
   q   positive nose up
-  δe  positive trailing-edge down → increases tail lift → nose-down moment
+  p   positive right-wing-down roll
+  r   positive nose-right yaw
+  δe  positive TED → increases tail lift → nose-down moment
+  δa  positive → right roll  (right aileron up, left aileron down)
+  δr  positive → trailing edge to port → yaw nose-left  (Nelson convention)
   Θ   positive nose up
+  Φ   positive right wing down
 
 References
 ----------
+  Nelson, R.C., "Flight Stability and Automatic Control", 2nd Ed.,
+    McGraw-Hill, 1998 — Chapters 2–4, lateral derivatives Ch. 3 §3.5.
+  Cook, M.V., "Flight Dynamics Principles", 3rd Ed., 2013 — Ch. 3–4.
+  Etkin, B. & Reid, L.D., "Dynamics of Flight", 3rd Ed., 1996 — Ch. 4–5.
   AERO50002 Lectures, Chapters 4 & 8; Tutorial 2 data sheets.
 """
 
@@ -78,38 +89,42 @@ def _surface_alpha(alpha_body: float, surface, upwash_sign: float = 0.0) -> floa
 #  Public API
 # ══════════════════════════════════════════════════════════════════
 
-def compute_aero(U: float, W: float, q: float, theta: float,
-                 delta_e: float, throttle: float,
-                 altitude: float) -> dict:
+def compute_aero(U: float, V_body: float, W: float,
+                 p: float, q: float, r: float,
+                 phi: float, theta: float,
+                 delta_e: float, delta_a: float, delta_r: float,
+                 throttle: float, altitude: float) -> dict:
     """
-    Compute aerodynamic + thrust forces and moments (longitudinal).
+    Compute aerodynamic + thrust forces and moments (full 6-DOF).
 
     Parameters
     ----------
-    U, W      : body-axis velocities [m/s]
-    q         : pitch rate [rad/s]
-    theta     : pitch angle [rad]
-    delta_e   : elevator deflection [rad], positive TED
-    throttle  : 0 … 1
-    altitude  : geometric altitude h [m]  (= −zE)
+    U, V_body, W : body-axis velocities [m/s]  (forward, right, down)
+    p, q, r      : body-axis angular rates [rad/s]  (roll, pitch, yaw)
+    phi          : bank angle [rad]
+    theta        : pitch angle [rad]
+    delta_e      : elevator deflection [rad], positive TED
+    delta_a      : aileron deflection [rad], positive right-roll
+    delta_r      : rudder deflection [rad], positive TE-to-port
+    throttle     : 0 … 1
+    altitude     : geometric altitude h [m]  (= −zE)
 
     Returns
     -------
     dict with keys:
-        X, Z      — total body-axis forces [N]
-        M         — total pitching moment about CG [N·m]
-        CL, CD    — total lift / drag coefficients
-        alpha     — angle of attack [rad]
-        V_T       — true airspeed [m/s]
-        q_bar     — dynamic pressure [Pa]
-        T         — thrust [N]
-        L_aero    — total lift force [N]
-        D_aero    — total drag force [N]
+        X, Y, Z       — total body-axis forces [N]
+        L_lat, M, N   — total body-axis moments [N·m] (roll, pitch, yaw)
+        CL, CD, CY    — force coefficients
+        alpha, beta   — aerodynamic angles [rad]
+        V_T, q_bar    — airspeed [m/s] and dynamic pressure [Pa]
+        T             — thrust [N]
+        L_aero, D_aero, Y_aero — aero lift/drag/side forces [N]
     """
 
-    # ── Airspeed & angle of attack ────────────────────────────────
-    V_T   = math.sqrt(U * U + W * W + _EPS)
+    # ── Airspeed & aerodynamic angles ─────────────────────────────────────
+    V_T   = math.sqrt(U * U + V_body * V_body + W * W + _EPS)
     alpha = math.atan2(W, U)
+    beta  = math.atan2(V_body, math.sqrt(U * U + W * W + _EPS))
 
     # ── Atmosphere ────────────────────────────────────────────────
     rho   = density(max(altitude, 0.0))
@@ -164,15 +179,51 @@ def compute_aero(U: float, W: float, q: float, theta: float,
     # ── Thrust ────────────────────────────────────────────────────
     T = _compute_thrust(throttle, V_T)
 
-    # ── Gravity in body axes ──────────────────────────────────────
+    # ── Gravity in body axes (full 3D) ────────────────────────────
+    # Nelson Eq. (2.11): body-axis gravity components
     sin_t = math.sin(theta)
     cos_t = math.cos(theta)
+    sin_p = math.sin(phi)
+    cos_p = math.cos(phi)
     Xg = -ac.m * ac.g * sin_t
-    Zg =  ac.m * ac.g * cos_t
+    Yg =  ac.m * ac.g * cos_t * sin_p
+    Zg =  ac.m * ac.g * cos_t * cos_p
+
+    # ── Lateral aerodynamic forces & moments ──────────────────────
+    # Nelson §3.5 / Cook §4.3: linearised lateral-directional model
+    b      = ac.b_ref
+    V_safe = max(V_T, _EPS)
+    p_hat  = p * b / (2.0 * V_safe)   # normalised roll rate  p̂ = pb/(2V)
+    r_hat  = r * b / (2.0 * V_safe)   # normalised yaw rate   r̂ = rb/(2V)
+
+    # Side-force coefficient
+    CY = (ac.CY_beta * beta
+          + ac.CY_p * p_hat
+          + ac.CY_r * r_hat
+          + ac.CY_da * delta_a
+          + ac.CY_dr * delta_r)
+    Y_aero = q_bar * ac.S_ref * CY
+
+    # Rolling-moment coefficient  (about body x-axis)
+    Cl = (ac.Cl_beta * beta
+          + ac.Cl_p * p_hat
+          + ac.Cl_r * r_hat
+          + ac.Cl_da * delta_a
+          + ac.Cl_dr * delta_r)
+    L_lat = q_bar * ac.S_ref * b * Cl
+
+    # Yawing-moment coefficient  (about body z-axis)
+    Cn = (ac.Cn_beta * beta
+          + ac.Cn_p * p_hat
+          + ac.Cn_r * r_hat
+          + ac.Cn_da * delta_a
+          + ac.Cn_dr * delta_r)
+    N_yaw = q_bar * ac.S_ref * b * Cn
 
     # ── Total body-axis forces ────────────────────────────────────
     X = Xa + Xg + T       # thrust along body x-axis
-    Z = Za + Zg
+    Y = Y_aero + Yg       # lateral force
+    Z = Za + Zg           # normal force
 
     # ── Pitching moment about CG ─────────────────────────────────
     # Each surface: M_surf = CM0_term − CL · l  (positive nose-up;
@@ -189,8 +240,6 @@ def compute_aero(U: float, W: float, q: float, theta: float,
     M_fus = q_bar * ac.S_ref * ac.c_ref * ac.dCM_da_fus * alpha
 
     # Thrust moment (z-offset of thrust line from CG)
-    # _dz_T is positive-up; in body axes (z-down) the offset is −_dz_T,
-    # so M_y = (−_dz_T) · T  =  −T · _dz_T.
     M_thrust = -T * _dz_T
 
     # NOTE: Pitch damping is already captured by the Δα_H = q·l_H/V_T
@@ -200,16 +249,24 @@ def compute_aero(U: float, W: float, q: float, theta: float,
 
     return {
         "X":       X,
+        "Y":       Y,
         "Z":       Z,
-        "M":       M_total,
+        "L_lat":   L_lat,        # rolling moment about body x
+        "M":       M_total,      # pitching moment about body y
+        "N":       N_yaw,        # yawing moment about body z
         "CL":      CL_total,
         "CD":      CD_total,
+        "CY":      CY,
+        "Cl":      Cl,           # rolling-moment coefficient
+        "Cn":      Cn,           # yawing-moment coefficient
         "alpha":   alpha,
+        "beta":    beta,
         "V_T":     V_T,
         "q_bar":   q_bar,
         "T":       T,
         "L_aero":  L_aero,
         "D_aero":  D_aero,
+        "Y_aero":  Y_aero,
     }
 
 

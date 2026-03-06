@@ -19,7 +19,8 @@ from flight_sim.physics import aircraft as ac
 from flight_sim.physics.aero import compute_aero
 from flight_sim.physics.eom import (
     compute_derivatives, rk4_step, find_trim, make_initial_state,
-    I_U, I_W, I_Q, I_TH, I_XE, I_ZE,
+    I_U, I_V, I_W, I_P, I_Q, I_R,
+    I_PHI, I_TH, I_PSI, I_XE, I_YE, I_ZE,
 )
 
 SEP = "=" * 60
@@ -53,7 +54,7 @@ def test_aero_sample():
     de = 0.0
     throttle = 0.3
 
-    fm = compute_aero(U, W, q, theta, de, throttle, 9144.0)
+    fm = compute_aero(U, 0.0, W, 0.0, q, 0.0, 0.0, theta, de, 0.0, 0.0, throttle, 9144.0)
     for k in ["alpha", "V_T", "q_bar", "CL", "CD", "L_aero", "D_aero",
               "T", "X", "Z", "M"]:
         val = fm[k]
@@ -101,7 +102,7 @@ def test_simulation(trim):
             print(f"  {t:6.2f}  {state[I_U]:8.2f}  {state[I_W]:8.2f}"
                   f"  {state[I_Q]:10.6f}  {math.degrees(state[I_TH]):8.3f}"
                   f"  {alt:8.1f}")
-        state = rk4_step(state, de, thr, dt)
+        state = rk4_step(state, de, 0.0, 0.0, thr, dt)
         t += dt
 
     alt_final = -state[I_ZE]
