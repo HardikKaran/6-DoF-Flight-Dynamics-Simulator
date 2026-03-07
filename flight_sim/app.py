@@ -59,13 +59,15 @@ def _init_sim(V: float = 180.0, h: float = 9144.0):
     ac.m = sim['base_mass'] * (0.6 + 0.4 * sim['fuel'])  # min 60% mass at empty fuel
     state, de_trim, thr_trim = make_initial_state(V=V, h=h)
     sim['state']     = state.copy()
-    sim['delta_e']   = de_trim    sim['delta_a']   = 0.0
-    sim['delta_r']   = 0.0    sim['throttle']  = thr_trim
+    sim['delta_e']   = de_trim
+    sim['delta_a']   = 0.0
+    sim['delta_r']   = 0.0
+    sim['throttle']  = thr_trim
     sim['trim_de']   = de_trim
     sim['trim_thr']  = thr_trim
     sim['paused']    = False
-    print(f"[sim] Trim → α={math.degrees(math.atan2(state[I_W], state[I_U])):.2f}°  "
-          f"δe={math.degrees(de_trim):.2f}°  thr={thr_trim*100:.1f}%  "
+    print(f"[sim] Trim -> alpha={math.degrees(math.atan2(state[I_W], state[I_U])):.2f} deg  "
+          f"de={math.degrees(de_trim):.2f} deg  thr={thr_trim*100:.1f}%  "
           f"V={math.hypot(state[I_U], state[I_W]):.1f} m/s  "
           f"h={-state[I_ZE]:.0f} m  mass={ac.m:.0f} kg")
 
@@ -262,7 +264,7 @@ def on_update_params(data):
             _precompute()
         except Exception:
             pass
-    print(f"[ws] params updated — m={ac.m}, Iyy={ac.Iyy}, CD0={ac.CD0}")
+    print(f"[ws] params updated - m={ac.m}, Iyy={ac.Iyy}, CD0={ac.CD0}")
 
 
 # ══════════════════════════════════════════════════════════════════
