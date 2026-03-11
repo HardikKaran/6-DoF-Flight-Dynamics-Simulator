@@ -45,6 +45,60 @@ _EPS = 1e-6
 
 
 # ══════════════════════════════════════════════════════════════════
+#  Stall model — smooth CL cap with post-stall drop-off
+#  Reference: Viterna & Corrigan (1982), flat-plate analogy
+# ══════════════════════════════════════════════════════════════════
+def _stall_CL(CL_linear: float, alpha: float,
+              alpha_stall: float = 0.26,  # ~15 deg
+              CL_max: float = 1.6) -> float:
+    """Apply post-stall CL reduction using a smooth blend.
+
+    Below alpha_stall the linear CL is returned unchanged.
+    Above alpha_stall a Viterna-type flat-plate model blends in,
+    giving a smooth drop-off and returning ~0 near 90 deg.
+    """
+    a = abs(alpha)
+    if a < alpha_stall:
+        return CL_linear
+    sign = 1.0 if CL_linear >= 0 else -1.0
+    # flat-plate: CL_fp = 2 sin(a) cos(a)
+    CL_fp = 2.0 * math.sin(a) * math.cos(a)
+    # blend factor (sigmoid)
+    k = min((a - alpha_stall) / 0.10, 1.0)  # linear blend over ~6 deg
+    CL_blended = CL_max * (1.0 - k) + CL_fp * k
+    return sign * min(abs(CL_blended), abs(CL_max))
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Compressibility corrections
+#  — Prandtl-Glauert below M_DD, wave drag above
+#  Reference: Anderson, "Fundamentals of Aerodynamics", Ch. 11
+# ══════════════════════════════════════════════════════════════════
+def _prandtl_glauert(M: float) -> float:
+    """Prandtl-Glauert compressibility correction factor (>=1).
+
+    Returns 1/sqrt(1 - M^2) for M < M_crit, capped at M_crit=0.70.
+    """
+    M_crit = 0.70
+    M_eff = min(abs(M), M_crit)
+    return 1.0 / math.sqrt(max(1.0 - M_eff * M_eff, 0.09))
+
+
+def _wave_drag(M: float, M_DD: float = None) -> float:
+    """Lock-type wave drag increment above drag-divergence Mach.
+
+    CD_wave = 20 * (M - M_DD)^4  for M > M_DD, else 0.
+    Reference: Raymer, "Aircraft Design", Ch. 12.
+    """
+    if M_DD is None:
+        M_DD = ac.M_DD
+    if M <= M_DD:
+        return 0.0
+    dM = M - M_DD
+    return 20.0 * dM * dM * dM * dM
+
+
+# ══════════════════════════════════════════════════════════════════
 #  Precomputed geometry  (moment arms from CG)
 # ══════════════════════════════════════════════════════════════════
 _l_C = 0.0; _l_W = 0.0; _l_H = 0.0
@@ -93,7 +147,8 @@ def compute_aero(U: float, V_body: float, W: float,
                  p: float, q: float, r: float,
                  phi: float, theta: float,
                  delta_e: float, delta_a: float, delta_r: float,
-                 throttle: float, altitude: float) -> dict:
+                 throttle: float, altitude: float,
+                 flaps: float = 0.0, W_dot_prev: float = 0.0) -> dict:
     """
     Compute aerodynamic + thrust forces and moments (full 6-DOF).
 
@@ -108,6 +163,8 @@ def compute_aero(U: float, V_body: float, W: float,
     delta_r      : rudder deflection [rad], positive TE-to-port
     throttle     : 0 … 1
     altitude     : geometric altitude h [m]  (= −zE)
+    flaps        : wing flap deflection fraction 0..1 (1 = full 30 deg)
+    W_dot_prev   : previous-step Wdot for downwash-lag derivatives
 
     Returns
     -------
@@ -128,21 +185,27 @@ def compute_aero(U: float, V_body: float, W: float,
 
     # ── Atmosphere ────────────────────────────────────────────────
     rho   = density(max(altitude, 0.0))
+    a_snd = speed_of_sound(max(altitude, 0.0))
+    Mach  = V_T / max(a_snd, 1.0)
     q_bar = 0.5 * rho * V_T * V_T
 
+    # ── Compressibility correction factor ─────────────────────────
+    PG = _prandtl_glauert(Mach)
+
     # ── Per-surface lift coefficients ─────────────────────────────
-    # Wing
+    # Wing  (with Prandtl-Glauert correction and optional flap increment)
     alpha_W = _surface_alpha(alpha, ac.wing, upwash_sign=0.0)
-    CL_W    = ac.wing.a * alpha_W
+    CL_W_lin = ac.wing.a * PG * alpha_W + flaps * ac.delta_CL0_W
+    CL_W     = _stall_CL(CL_W_lin, alpha)
 
     # Canard  (in upwash field of wing → upwash_sign = +1)
     alpha_C = _surface_alpha(alpha, ac.canard, upwash_sign=+1.0)
-    CL_C    = ac.canard.a * alpha_C
+    CL_C    = ac.canard.a * PG * alpha_C
 
     # Horizontal tail  (in downwash of wing → upwash_sign = -1)
     # Also receives elevator contribution
     alpha_H = _surface_alpha(alpha, ac.tail, upwash_sign=-1.0)
-    CL_H    = ac.tail.a * alpha_H + ac.a_E * delta_e
+    CL_H    = ac.tail.a * PG * alpha_H + ac.a_E * delta_e
 
     # ── Pitch-damping contribution to tail lift ───────────────────
     # The tail sees an additional angle due to pitch rate:
@@ -161,10 +224,12 @@ def compute_aero(U: float, V_body: float, W: float,
     CD_C = ac.CD0_C + ac.canard.k * CL_C * CL_C / (math.pi * ac.canard.AR)
     CD_H = ac.CD0_H + ac.tail.k   * CL_H * CL_H / (math.pi * ac.tail.AR)
 
-    CD_total = (ac.CD0
+    CD0_eff = ac.CD0 + flaps * ac.delta_CD0_flap   # flap drag increment
+    CD_total = (CD0_eff
                 + CD_W * ac.wing.S / ac.S_ref
                 + CD_C * ac.canard.S / ac.S_ref
-                + CD_H * ac.tail.S / ac.S_ref)
+                + CD_H * ac.tail.S / ac.S_ref
+                + _wave_drag(Mach))                 # wave drag above M_DD
 
     # ── Lift & drag forces [N] in wind axes ───────────────────────
     L_aero = q_bar * ac.S_ref * CL_total
@@ -220,10 +285,27 @@ def compute_aero(U: float, V_body: float, W: float,
           + ac.Cn_dr * delta_r)
     N_yaw = q_bar * ac.S_ref * b * Cn
 
+    # ── Wdot (downwash lag) derivatives — Nelson Ch. 8 ────────────
+    # The rate of change of downwash lags behind alpha-dot,
+    # producing additional pitching moment and normal force.
+    #   CM_alpha_dot approx = -2 * a_H * V_H_bar * (de/da) * l_H / c_ref
+    #   CZ_alpha_dot approx = -2 * a_H * V_H_bar * (de/da)
+    # We approximate alpha_dot ~ Wdot / V using previous-step Wdot.
+    if V_T > _EPS and abs(W_dot_prev) > 0.0:
+        alpha_dot_est = W_dot_prev / V_T
+        alpha_dot_hat = alpha_dot_est * ac.c_ref / (2.0 * V_T)  # normalised
+        CZ_adot = -2.0 * ac.tail.a * _V_H * ac.tail.de_da
+        CM_adot = -2.0 * ac.tail.a * _V_H * ac.tail.de_da * _l_H / ac.c_ref
+        Z_wdot = q_bar * ac.S_ref * CZ_adot * alpha_dot_hat
+        M_wdot = q_bar * ac.S_ref * ac.c_ref * CM_adot * alpha_dot_hat
+    else:
+        Z_wdot = 0.0
+        M_wdot = 0.0
+
     # ── Total body-axis forces ────────────────────────────────────
     X = Xa + Xg + T       # thrust along body x-axis
     Y = Y_aero + Yg       # lateral force
-    Z = Za + Zg           # normal force
+    Z = Za + Zg + Z_wdot  # normal force (includes Wdot derivative)
 
     # ── Pitching moment about CG ─────────────────────────────────
     # Each surface: M_surf = CM0_term − CL · l  (positive nose-up;
@@ -242,10 +324,10 @@ def compute_aero(U: float, V_body: float, W: float,
     # Thrust moment (z-offset of thrust line from CG)
     M_thrust = -T * _dz_T
 
-    # NOTE: Pitch damping is already captured by the Δα_H = q·l_H/V_T
+    # NOTE: Pitch damping is already captured by the delta_alpha_H = q*l_H/V_T
     # modification to CL_H above; no separate CM_q term is needed.
 
-    M_total = M_W + M_C + M_H + M_fus + M_thrust
+    M_total = M_W + M_C + M_H + M_fus + M_thrust + M_wdot
 
     return {
         "X":       X,
@@ -267,6 +349,8 @@ def compute_aero(U: float, V_body: float, W: float,
         "L_aero":  L_aero,
         "D_aero":  D_aero,
         "Y_aero":  Y_aero,
+        "Mach":    Mach,
+        "stall":   abs(alpha) > 0.26,
     }
 
 

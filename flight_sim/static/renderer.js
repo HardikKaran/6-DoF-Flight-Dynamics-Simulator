@@ -320,10 +320,11 @@ function drawAttitudeIndicator(cx, cy, radius, theta, phi, q) {
   ctx.arc(0, 0, radius - 2, 0, Math.PI * 2);
   ctx.clip();
 
-  /* sky / ground split rotated by theta AND phi (bank) */
-  ctx.rotate(phi);        // bank (roll) rotation
-  ctx.rotate(-theta);     // then pitch
-  const big = radius * 3;
+  /* sky / ground split: bank rotates, pitch translates */
+  ctx.rotate(phi);                           // bank (roll) tilts horizon
+  const pxPerRad = radius / 0.52;            // ~30 deg fills the radius
+  ctx.translate(0, theta * pxPerRad);        // pitch moves horizon down when nose-up
+  const big = radius * 4;
   ctx.fillStyle = '#3a6abf';
   ctx.fillRect(-big, -big, big * 2, big);   // sky (top half)
   ctx.fillStyle = '#8B6914';
@@ -337,7 +338,7 @@ function drawAttitudeIndicator(cx, cy, radius, theta, phi, q) {
   ctx.lineWidth = 0.8;
   ctx.font = '8px sans-serif';
   ctx.fillStyle = '#fff';
-  const pxPerDeg = radius / 30;
+  const pxPerDeg = pxPerRad * Math.PI / 180;
   for (let d = -30; d <= 30; d += 10) {
     if (d === 0) continue;
     const y = -d * pxPerDeg;
@@ -468,6 +469,15 @@ function render(state) {
   if (opts.showHud !== false) {
     drawHUD(state);
     drawForceReadout(state.forces);
+  }
+
+  /* 8 — stall warning border flash */
+  if (state.stall) {
+    ctx.save();
+    ctx.strokeStyle = '#f85149';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, W - 6, H - 6);
+    ctx.restore();
   }
 }
 

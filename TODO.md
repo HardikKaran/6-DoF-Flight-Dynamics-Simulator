@@ -133,30 +133,30 @@
 ## Phase 6 — Atmosphere & Refinements
 > Goal: realism improvements.
 
-- [ ] **6.1 ISA atmosphere** — ρ, T, a as functions of altitude (troposphere + stratosphere)
-- [ ] **6.2 Stall model** — cap CL above α_stall ≈ 15°, post-stall CL drop-off
-- [ ] **6.3 Compressibility corrections** — Prandtl-Glauert below M_DD, wave drag above
-- [ ] **6.4 Flap effects** — ΔCL0_W, ΔCD0, canard flap ΔCL_C/δ_fC for approach config
-- [ ] **6.5 Gimbal-lock protection** — clamp Θ at ±85° or implement quaternion attitude
-- [ ] **6.6 Variable mass** — fuel burn reduces m and shifts CG over time
-- [ ] **6.7 Ẇ-derivatives** — XẆ, ZẆ, MẆ (downwash lag, Ch. 8)
+- [x] **6.1 ISA atmosphere** — rho, T, a as functions of altitude (troposphere + stratosphere)
+- [x] **6.2 Stall model** — cap CL above alpha_stall ~ 15 deg, post-stall CL drop-off
+- [x] **6.3 Compressibility corrections** — Prandtl-Glauert below M_DD, wave drag above
+- [x] **6.4 Flap effects** — delta_CL0_W, delta_CD0, canard flap delta_CL_C/delta_fC for approach config
+- [x] **6.5 Gimbal-lock protection** — clamp Theta at +/-85 deg
+- [x] **6.6 Variable mass** — fuel burn reduces m and shifts CG over time
+- [x] **6.7 Wdot-derivatives** — XWdot, ZWdot, MWdot (downwash lag, Ch. 8)
 
 ---
 
 ## Phase 7 — Stability Analysis & Autopilot (stretch)
 > Goal: educational tools for flight dynamics course.
 
-- [ ] **7.1 Linearisation** — compute stability matrices A, B at trim
-- [ ] **7.2 Eigenvalue display** — show short-period & phugoid modes
-- [ ] **7.3 PID pitch autopilot** — hold altitude or pitch angle (Ch. 12)
-- [ ] **7.4 Trim map** — show how trim α, δe, T vary with speed and altitude
-- [ ] **7.5 Elevator hinge moment** — compute stick force using b_0, b_H, b_E, b_T
+- [x] **7.1 Linearisation** — compute stability matrices A, B at trim
+- [x] **7.2 Eigenvalue display** — show short-period & phugoid modes
+- [x] **7.3 PID pitch autopilot** — hold altitude or pitch angle (Ch. 12)
+- [x] **7.4 Trim map** — show how trim alpha, delta_e, T vary with speed and altitude
+- [x] **7.5 Elevator hinge moment** — compute stick force using b_0, b_H, b_E, b_T
 
 ---
 
 ## Phase 8 — Polish & Deployment
-- [ ] **8.1 Responsive layout** — handle window resize
-- [ ] **8.2 Loading screen** — show while SocketIO connects
-- [ ] **8.3 Unit tests** — verify EOM derivatives against hand-calc at trim
-- [ ] **8.4 README** — setup instructions, screenshots, architecture docs
+- [x] **8.1 Responsive layout** — handle window resize
+- [x] **8.2 Loading screen** — show while SocketIO connects
+- [x] **8.3 Unit tests** — verify EOM derivatives against hand-calc at trim (81 tests)
+- [x] **8.4 README** — setup instructions, screenshots, architecture docs
 - [ ] **8.5 Docker / deployment** — optional containerised deployment

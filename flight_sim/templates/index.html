@@ -217,9 +217,160 @@
       margin-top: 14px;
       justify-content: flex-end;
     }
+
+    /* ── STALL WARNING ───────────────────────────── */
+    #stall-warn {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 340px;
+      z-index: 50;
+      background: #f85149;
+      color: #fff;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 6px 0;
+      letter-spacing: 2px;
+      animation: stallFlash 0.5s infinite alternate;
+    }
+    @keyframes stallFlash {
+      from { opacity: 1; }
+      to   { opacity: 0.4; }
+    }
+
+    /* ── LOADING SCREEN ──────────────────────────── */
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: #0d1117;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #c9d1d9;
+      font-family: 'IBM Plex Mono', monospace;
+      transition: opacity 0.4s;
+    }
+    #loading-screen.hidden { opacity: 0; pointer-events: none; }
+    #loading-screen h1 { font-size: 22px; color: #58a6ff; margin-bottom: 10px; }
+    #loading-screen .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #30363d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-top: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── AUTOPILOT SECTION ───────────────────────── */
+    .ap-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin: 2px 0;
+    }
+    .ap-row label {
+      font-size: 10px;
+      color: #8b949e;
+      min-width: 30px;
+    }
+    .ap-row input[type=number] {
+      font-family: inherit;
+      font-size: 11px;
+      width: 70px;
+      background: #0d1117;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      padding: 2px 4px;
+      outline: none;
+    }
+    .ap-row input[type=number]:focus { border-color: #58a6ff; }
+    .ap-btn { font-size: 10px !important; padding: 3px 6px !important; }
+
+    /* ── STABILITY / TRIM-MAP OVERLAY ────────────── */
+    #stability-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 110;
+      justify-content: center;
+      align-items: center;
+    }
+    #stability-overlay.open { display: flex; }
+    #stability-overlay .overlay-inner {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px 20px;
+      width: 640px;
+      max-height: 85vh;
+      overflow-y: auto;
+      color: #c9d1d9;
+    }
+    #stability-overlay h3 {
+      font-size: 14px;
+      color: #58a6ff;
+      margin: 10px 0 4px;
+    }
+    #stability-overlay table {
+      width: 100%;
+      font-size: 10px;
+      border-collapse: collapse;
+      margin: 4px 0 8px;
+    }
+    #stability-overlay th,
+    #stability-overlay td {
+      padding: 3px 6px;
+      border: 1px solid #21262d;
+      text-align: center;
+    }
+    #stability-overlay th {
+      background: #21262d;
+      color: #58a6ff;
+    }
+    .overlay-close-btn {
+      float: right;
+      background: none;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 2px 8px;
+    }
+    .overlay-close-btn:hover { background: #30363d; }
+
+    /* ── RESPONSIVE ──────────────────────────────── */
+    @media (max-width: 800px) {
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto 80px;
+        grid-template-areas:
+          "canvas"
+          "panel"
+          "bar";
+      }
+      #panel { max-height: 40vh; border-left: none; border-top: 1px solid #30363d; }
+      #stall-warn { right: 0; }
+    }
   </style>
 </head>
 <body>
+
+  <!-- ═══ LOADING SCREEN ═════════════════════════════════════ -->
+  <div id="loading-screen">
+    <h1>Piaggio P.180 Avanti</h1>
+    <p>Full 6-DOF Flight Dynamics Simulator</p>
+    <div class="spinner"></div>
+    <p style="margin-top:12px;font-size:11px;color:#484f58">Connecting to physics engine...</p>
+  </div>
+
+  <!-- ═══ STALL WARNING BANNER ═══════════════════════════════ -->
+  <div id="stall-warn">STALL WARNING</div>
 
   <!-- ═══ MAIN CANVAS ════════════════════════════════════════ -->
   <canvas id="sim-canvas"></canvas>
@@ -247,6 +398,10 @@
     <div class="row"><span class="label">Roll rate (p)</span>             <span class="value" id="val-p">—</span></div>
     <div class="row"><span class="label">Yaw rate (r)</span>              <span class="value" id="val-r">—</span></div>
     <div class="row"><span class="label">Flight path (γ)</span>           <span class="value" id="val-gamma">—</span></div>
+    <div class="row"><span class="label">Fuel</span>                       <span class="value" id="val-fuel">—</span></div>
+    <div class="row"><span class="label">Mass</span>                       <span class="value" id="val-mass">—</span></div>
+    <div class="row"><span class="label">Flaps</span>                      <span class="value" id="val-flaps">—</span></div>
+    <div class="row"><span class="label">A/P Mode</span>                   <span class="value" id="val-ap-mode">OFF</span></div>
 
     <!-- ─── Pilot Inputs (interactive) ───────────── -->
     <h2>Pilot Inputs</h2>
@@ -323,6 +478,25 @@
       <button class="btn active" id="btn-datum-ac">Aircraft Datum</button>
     </div>
 
+    <!-- ─── Autopilot ─────────────────────────────── -->
+    <h2>Autopilot</h2>
+    <div class="btn-group">
+      <button class="btn ap-btn active" id="ap-btn-off"      onclick="setAutopilot('off')">OFF</button>
+      <button class="btn ap-btn"        id="ap-btn-pitch"    onclick="setAutopilot('pitch')">Pitch</button>
+      <button class="btn ap-btn"        id="ap-btn-altitude" onclick="setAutopilot('altitude')">Alt</button>
+      <button class="btn ap-btn"        id="ap-btn-heading"  onclick="setAutopilot('heading')">Hdg</button>
+    </div>
+    <div class="ap-row"><label>θ cmd</label><input type="number" id="ap-theta-cmd" value="0" step="0.5"> °</div>
+    <div class="ap-row"><label>h cmd</label><input type="number" id="ap-h-cmd" value="9144" step="100"> m</div>
+    <div class="ap-row"><label>ψ cmd</label><input type="number" id="ap-psi-cmd" value="0" step="1"> °</div>
+
+    <!-- ─── Stability ────────────────────────────── -->
+    <h2>Analysis</h2>
+    <div class="btn-group">
+      <button class="btn" onclick="requestStability()">Stability</button>
+      <button class="btn" onclick="requestTrimMap()">Trim Map</button>
+    </div>
+
     <!-- ─── Action Buttons ───────────────────────── -->
     <div class="btn-group" style="margin-top:6px">
       <button class="btn" id="btn-pause">⏸ Pause</button>
@@ -335,6 +509,7 @@
       <kbd>W</kbd><kbd>S</kbd> Throttle &nbsp;
       <kbd>A</kbd><kbd>D</kbd> Aileron &nbsp;
       <kbd>Q</kbd><kbd>E</kbd> Rudder &nbsp;
+      <kbd>F</kbd> Flaps &nbsp;
       <kbd>R</kbd> Reset &nbsp;
       <kbd>P</kbd> Pause
     </div>
@@ -395,6 +570,14 @@
         <button class="btn" id="pe-load">✓ Load</button>
         <button class="btn" id="pe-exit">✕ Exit</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══ STABILITY OVERLAY ═══════════════════════════════════ -->
+  <div id="stability-overlay">
+    <div class="overlay-inner">
+      <button class="overlay-close-btn" onclick="closeStabilityOverlay()">✕</button>
+      <div class="overlay-body"></div>
     </div>
   </div>
 

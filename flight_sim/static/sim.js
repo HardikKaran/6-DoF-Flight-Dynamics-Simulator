@@ -35,6 +35,7 @@ window.addEventListener('keydown', e => {
   /* single-press shortcuts */
   if (e.key === 'r' || e.key === 'R') resetSim();
   if (e.key === 'p' || e.key === 'P') togglePause();
+  if (e.key === 'f' || e.key === 'F') toggleFlaps();
 });
 window.addEventListener('keyup', e => { keys[e.key] = false; });
 
@@ -270,6 +271,20 @@ function updatePanel(state) {
   set('bar-xe',    (state.xE || 0).toFixed(0) + ' m');
   set('bar-ye',    (state.yE || 0).toFixed(0) + ' m');
   set('bar-ze',    (state.zE || 0).toFixed(0) + ' m');
+
+  /* stall warning */
+  const stallEl = document.getElementById('stall-warn');
+  if (stallEl) stallEl.style.display = state.stall ? 'block' : 'none';
+
+  /* autopilot mode indicator */
+  set('val-ap-mode', (state.ap_mode || 'OFF').toUpperCase());
+
+  /* fuel & mass */
+  set('val-fuel', ((state.fuel || 1) * 100).toFixed(0) + '%');
+  set('val-mass', (state.mass || 0).toFixed(0) + ' kg');
+
+  /* flap display */
+  set('val-flaps', ((state.flaps || 0) * 100).toFixed(0) + '%');
 }
 
 /* ================================================================
@@ -287,6 +302,9 @@ function connectSocket() {
     trimLoaded = false;  // re-sync on reconnect
     const cs = document.getElementById('conn-status');
     if (cs) { cs.textContent = 'Connected'; cs.style.color = '#4af7b0'; }
+    /* hide loading screen */
+    const ls = document.getElementById('loading-screen');
+    if (ls) ls.classList.add('hidden');
   });
 
   socket.on('disconnect', () => {
@@ -323,6 +341,16 @@ function connectSocket() {
     state._viewOpts = viewOpts;  // pass display options to renderer
     render(state);
     updatePanel(state);
+  });
+
+  socket.on('stability_result', (data) => {
+    console.log('[sim] stability result:', data);
+    showStabilityOverlay(data);
+  });
+
+  socket.on('trim_map_result', (data) => {
+    console.log('[sim] trim map result:', data);
+    showTrimMapOverlay(data);
   });
 }
 
@@ -414,6 +442,234 @@ function loadParams() {
 }
 
 /* ================================================================
+   FLAPS TOGGLE  (F key cycles 0% → 50% → 100% → 0%)
+   ================================================================ */
+let flapSetting = 0;
+function toggleFlaps() {
+  flapSetting = (flapSetting + 1) % 3;
+  const val = [0, 0.5, 1.0][flapSetting];
+  if (socket && socket.connected) {
+    socket.emit('set_flaps', { flaps: val });
+  }
+  const el = document.getElementById('val-flaps');
+  if (el) el.textContent = (val * 100).toFixed(0) + '%';
+}
+
+/* ================================================================
+   AUTOPILOT
+   ================================================================ */
+function setAutopilot(mode) {
+  const data = { mode };
+  if (mode === 'pitch') {
+    data.theta_cmd = parseFloat(document.getElementById('ap-theta-cmd')?.value || 0);
+  } else if (mode === 'altitude') {
+    data.h_cmd = parseFloat(document.getElementById('ap-h-cmd')?.value || 9144);
+  } else if (mode === 'heading') {
+    data.psi_cmd = parseFloat(document.getElementById('ap-psi-cmd')?.value || 0);
+  }
+  if (socket && socket.connected) {
+    socket.emit('set_autopilot', data);
+  }
+  /* update button states */
+  document.querySelectorAll('.ap-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('ap-btn-' + mode);
+  if (btn) btn.classList.add('active');
+  _currentApMode = mode;
+}
+let _currentApMode = 'off';
+
+/* live-update AP command when input values change while mode is active */
+function _bindApInputs() {
+  const hInput = document.getElementById('ap-h-cmd');
+  const thetaInput = document.getElementById('ap-theta-cmd');
+  const psiInput = document.getElementById('ap-psi-cmd');
+  if (hInput) hInput.addEventListener('input', () => {
+    if (_currentApMode === 'altitude' && socket && socket.connected)
+      socket.emit('set_autopilot', { mode: 'altitude', h_cmd: parseFloat(hInput.value || 9144) });
+  });
+  if (thetaInput) thetaInput.addEventListener('input', () => {
+    if (_currentApMode === 'pitch' && socket && socket.connected)
+      socket.emit('set_autopilot', { mode: 'pitch', theta_cmd: parseFloat(thetaInput.value || 0) });
+  });
+  if (psiInput) psiInput.addEventListener('input', () => {
+    if (_currentApMode === 'heading' && socket && socket.connected)
+      socket.emit('set_autopilot', { mode: 'heading', psi_cmd: parseFloat(psiInput.value || 0) });
+  });
+}
+
+/* ================================================================
+   STABILITY ANALYSIS
+   ================================================================ */
+function requestStability() {
+  if (socket && socket.connected) {
+    const V = parseFloat(document.getElementById('slider-vel')?.value || 180);
+    const h = parseFloat(document.getElementById('slider-alt')?.value || 9144);
+    socket.emit('get_stability', { V, h });
+  }
+}
+
+function requestTrimMap() {
+  if (socket && socket.connected) {
+    socket.emit('get_trim_map');
+  }
+}
+
+/* ================================================================
+   STABILITY RESULTS OVERLAY
+   ================================================================ */
+function showStabilityOverlay(data) {
+  let overlay = document.getElementById('stability-overlay');
+  if (!overlay) return;
+  if (data.error) {
+    overlay.querySelector('.overlay-body').innerHTML = '<p style="color:#f85149">Error: ' + data.error + '</p>';
+    overlay.classList.add('open');
+    return;
+  }
+  let html = '<h3>Trim Condition</h3>';
+  const t = data.trim;
+  html += `<p>V=${t.V.toFixed(1)} m/s, h=${t.h.toFixed(0)} m, alpha=${t.alpha_deg.toFixed(2)} deg, `
+        + `de=${t.delta_e_deg.toFixed(2)} deg, thr=${t.throttle_pct.toFixed(1)}%</p>`;
+
+  html += '<h3>Longitudinal Modes</h3><table><tr><th>Mode</th><th>wn</th><th>zeta</th><th>Period</th><th>T_half</th><th>Stable</th></tr>';
+  (data.modes_lon || []).forEach(m => {
+    html += `<tr><td>${m.name}</td><td>${m.wn.toFixed(3)}</td><td>${m.zeta.toFixed(3)}</td>`
+          + `<td>${m.period < 1e5 ? m.period.toFixed(2)+'s' : 'inf'}</td>`
+          + `<td>${m.t_half < 1e5 ? m.t_half.toFixed(2)+'s' : 'inf'}</td>`
+          + `<td style="color:${m.stable?'#4af7b0':'#f85149'}">${m.stable?'YES':'NO'}</td></tr>`;
+  });
+  html += '</table>';
+
+  html += '<h3>Lateral Modes</h3><table><tr><th>Mode</th><th>wn</th><th>zeta</th><th>Period</th><th>T_half</th><th>Stable</th></tr>';
+  (data.modes_lat || []).forEach(m => {
+    html += `<tr><td>${m.name}</td><td>${m.wn.toFixed(3)}</td><td>${m.zeta.toFixed(3)}</td>`
+          + `<td>${m.period < 1e5 ? m.period.toFixed(2)+'s' : 'inf'}</td>`
+          + `<td>${m.t_half < 1e5 ? m.t_half.toFixed(2)+'s' : 'inf'}</td>`
+          + `<td style="color:${m.stable?'#4af7b0':'#f85149'}">${m.stable?'YES':'NO'}</td></tr>`;
+  });
+  html += '</table>';
+
+  html += '<h3>Eigenvalues (s-plane)</h3>';
+  html += '<canvas id="eig-canvas" width="300" height="200" style="background:#0d1117;border:1px solid #30363d;border-radius:4px"></canvas>';
+
+  overlay.querySelector('.overlay-body').innerHTML = html;
+  overlay.classList.add('open');
+
+  /* draw eigenvalue plot */
+  requestAnimationFrame(() => drawEigenPlot(data));
+}
+
+function drawEigenPlot(data) {
+  const cvs = document.getElementById('eig-canvas');
+  if (!cvs) return;
+  const ctx = cvs.getContext('2d');
+  const w = cvs.width, h = cvs.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const allEigs = [...(data.eigenvalues_lon||[]), ...(data.eigenvalues_lat||[])];
+  if (!allEigs.length) return;
+
+  const maxR = Math.max(...allEigs.map(e => Math.abs(e.real)), 0.1);
+  const maxI = Math.max(...allEigs.map(e => Math.abs(e.imag)), 0.1);
+  const scale = Math.max(maxR, maxI) * 1.3;
+
+  const cx = w/2, cy = h/2;
+  const sx = (w/2-10)/scale, sy = (h/2-10)/scale;
+
+  /* axes */
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+
+  /* labels */
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '9px sans-serif';
+  ctx.fillText('Re', w-18, cy-4);
+  ctx.fillText('Im', cx+4, 12);
+
+  /* stability boundary */
+  ctx.strokeStyle = '#f8514955';
+  ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+  ctx.setLineDash([]);
+
+  /* plot longitudinal eigs */
+  (data.eigenvalues_lon||[]).forEach(e => {
+    const px = cx + e.real * sx;
+    const py = cy - e.imag * sy;
+    ctx.fillStyle = '#58a6ff';
+    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2); ctx.fill();
+  });
+
+  /* plot lateral eigs */
+  (data.eigenvalues_lat||[]).forEach(e => {
+    const px = cx + e.real * sx;
+    const py = cy - e.imag * sy;
+    ctx.fillStyle = '#f7c948';
+    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2); ctx.fill();
+  });
+
+  /* legend */
+  ctx.fillStyle = '#58a6ff'; ctx.fillRect(8, 8, 8, 8);
+  ctx.fillStyle = '#8b949e'; ctx.fillText('Lon', 20, 16);
+  ctx.fillStyle = '#f7c948'; ctx.fillRect(8, 20, 8, 8);
+  ctx.fillStyle = '#8b949e'; ctx.fillText('Lat', 20, 28);
+}
+
+function showTrimMapOverlay(data) {
+  let overlay = document.getElementById('stability-overlay');
+  if (!overlay) return;
+  if (data.error) {
+    overlay.querySelector('.overlay-body').innerHTML = '<p style="color:#f85149">Error: ' + data.error + '</p>';
+    overlay.classList.add('open');
+    return;
+  }
+  let html = '<h3>Trim Map</h3>';
+  html += '<table><tr><th>h (m) \\ V (m/s)</th>';
+  data.V_range.forEach(v => html += `<th>${v.toFixed(0)}</th>`);
+  html += '</tr>';
+
+  html += '<tr><td colspan="' + (data.V_range.length+1) + '"><b>alpha (deg)</b></td></tr>';
+  data.h_range.forEach((h, ih) => {
+    html += `<tr><td>${h.toFixed(0)}</td>`;
+    data.alpha[ih].forEach((a, iv) => {
+      const ok = data.converged[ih][iv];
+      html += `<td style="color:${ok?'#e6edf3':'#f85149'}">${a.toFixed(1)}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '<tr><td colspan="' + (data.V_range.length+1) + '"><b>delta_e (deg)</b></td></tr>';
+  data.h_range.forEach((h, ih) => {
+    html += `<tr><td>${h.toFixed(0)}</td>`;
+    data.delta_e[ih].forEach((d, iv) => {
+      const ok = data.converged[ih][iv];
+      html += `<td style="color:${ok?'#e6edf3':'#f85149'}">${d.toFixed(1)}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '<tr><td colspan="' + (data.V_range.length+1) + '"><b>throttle (%)</b></td></tr>';
+  data.h_range.forEach((h, ih) => {
+    html += `<tr><td>${h.toFixed(0)}</td>`;
+    data.throttle[ih].forEach((t, iv) => {
+      const ok = data.converged[ih][iv];
+      html += `<td style="color:${ok?'#e6edf3':'#f85149'}">${t.toFixed(0)}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</table>';
+  overlay.querySelector('.overlay-body').innerHTML = html;
+  overlay.classList.add('open');
+}
+
+function closeStabilityOverlay() {
+  const overlay = document.getElementById('stability-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+/* ================================================================
    INIT
    ================================================================ */
 window.addEventListener('DOMContentLoaded', () => {
@@ -423,6 +679,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initCanvas(cvs);
   bindSliders();
   bindButtons();
+  _bindApInputs();
   connectSocket();
   startControlLoop();
 });

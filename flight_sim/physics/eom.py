@@ -68,7 +68,8 @@ DT_DEFAULT = 1.0 / 60.0
 
 def compute_derivatives(state: np.ndarray, delta_e: float,
                         delta_a: float, delta_r: float,
-                        throttle: float) -> np.ndarray:
+                        throttle: float, flaps: float = 0.0,
+                        W_dot_prev: float = 0.0) -> np.ndarray:
     """
     Compute the 12 time-derivatives of the full 6-DOF state.
 
@@ -89,7 +90,8 @@ def compute_derivatives(state: np.ndarray, delta_e: float,
 
     # ── Get forces & moments from aero model ──────────────────────
     fm = compute_aero(U, V, W, p, q, r, phi, theta,
-                      delta_e, delta_a, delta_r, throttle, altitude)
+                      delta_e, delta_a, delta_r, throttle, altitude,
+                      flaps=flaps, W_dot_prev=W_dot_prev)
     X     = fm["X"]
     Y     = fm["Y"]
     Z     = fm["Z"]
@@ -192,7 +194,9 @@ def compute_derivatives(state: np.ndarray, delta_e: float,
 
 def rk4_step(state: np.ndarray, delta_e: float,
              delta_a: float, delta_r: float,
-             throttle: float, dt: float = DT_DEFAULT) -> np.ndarray:
+             throttle: float, dt: float = DT_DEFAULT,
+             flaps: float = 0.0,
+             W_dot_prev: float = 0.0) -> np.ndarray:
     """
     Advance the 12-state vector by one RK4 time step.
 
@@ -204,15 +208,17 @@ def rk4_step(state: np.ndarray, delta_e: float,
     delta_r  : rudder   deflection [rad]
     throttle : 0 … 1
     dt       : time step [s]
+    flaps    : wing flap fraction 0..1
+    W_dot_prev : previous-step Wdot for downwash-lag derivatives
 
     Returns
     -------
     (12,) ndarray — new state after dt
     """
-    k1 = compute_derivatives(state,              delta_e, delta_a, delta_r, throttle)
-    k2 = compute_derivatives(state + 0.5*dt*k1,  delta_e, delta_a, delta_r, throttle)
-    k3 = compute_derivatives(state + 0.5*dt*k2,  delta_e, delta_a, delta_r, throttle)
-    k4 = compute_derivatives(state + dt*k3,       delta_e, delta_a, delta_r, throttle)
+    k1 = compute_derivatives(state,              delta_e, delta_a, delta_r, throttle, flaps, W_dot_prev)
+    k2 = compute_derivatives(state + 0.5*dt*k1,  delta_e, delta_a, delta_r, throttle, flaps, W_dot_prev)
+    k3 = compute_derivatives(state + 0.5*dt*k2,  delta_e, delta_a, delta_r, throttle, flaps, W_dot_prev)
+    k4 = compute_derivatives(state + dt*k3,       delta_e, delta_a, delta_r, throttle, flaps, W_dot_prev)
 
     new_state = state + (dt / 6.0) * (k1 + 2.0*k2 + 2.0*k3 + k4)
 

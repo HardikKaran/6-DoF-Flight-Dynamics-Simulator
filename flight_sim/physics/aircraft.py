@@ -181,6 +181,15 @@ Ixz     = 3_936                # cross-product 2nd moment of inertia [kg m²]
 
 
 # ══════════════════════════════════════════════════════════════════
+#  FUEL SYSTEM  (variable mass)
+# ══════════════════════════════════════════════════════════════════
+TSFC         = 0.000085        # kg/(N*s)  typical turboprop TSFC
+m_fuel_max   = 1100.0          # kg  max fuel load
+m_empty      = m - m_fuel_max  # ~3736 kg  zero-fuel mass
+x_fuel_tank  = 7.20            # m  fuel tank CG (near wing spar)
+
+
+# ══════════════════════════════════════════════════════════════════
 #  LATERAL-DIRECTIONAL STABILITY DERIVATIVES
 # ══════════════════════════════════════════════════════════════════
 # All dimensionless, per radian.  Forces normalised by q̄·S_ref;
